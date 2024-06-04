@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 
 # CCTV 정보를 담는 데이터 클래스
 # 고유한 CCTV ID를 정의하고, 이에 따른 CCTV 이름, HLS 주소, 좌표 등을 저장한다.
@@ -33,12 +34,25 @@ class CCTVStream:
     def __eq__(self, other):
         return self.id == other.id
 
+
+# CCTVRecord의 상태를 정의하는 열거형
+class CCTVRecordState(Enum):
+    PENDING = 1     # 녹화의 시작을 기다리는 상태
+    STARTED = 2     # 녹화가 시작된 상태
+    CANCELD = 3     # 녹화가 사용자에 의해 취소된 상태
+    FINISHED = 4    # 녹화가 완료된 상태
+    UNKNOWN = 5     # 알 수 없는 오류로 녹화 상태를 알 수 없을 때
+
+
 # CCTV 녹화 정보를 담는 데이터 클래스
 # 녹화된 CCTV 영상의 위치, 녹화 시작/종료 시간 등을 저장한다.
 @dataclass
 class CCTVRecord:
+    id: str
     cctvid: str
+    reqat: datetime
     startat: datetime
     endat: datetime
-    state: str
+    state: CCTVRecordState
     path: str
+    source: str
