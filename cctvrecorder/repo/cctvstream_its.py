@@ -5,8 +5,8 @@ from sqlite3 import connect
 import requests
 import uuid
 
-from cctvrecorder.core.models import CCTVStream
-from cctvrecorder.core.repos import CCTVStreamRepo
+from cctvrecorder.core.model import CCTVStream
+from cctvrecorder.core.repo import CCTVStreamRepo
 
 class CCTVStreamITSRepo(CCTVStreamRepo):
 

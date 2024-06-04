@@ -1,5 +1,5 @@
-from cctvrecorder.core.repos import CCTVStreamRepo
-from cctvrecorder.repos.cctvstream_its import CCTVStreamITSRepo
+from cctvrecorder.core.repo import CCTVStreamRepo
+from cctvrecorder.repo.cctvstream_its import CCTVStreamITSRepo
 
 if __name__ == "__main__":
     # get api key from `api.key` file
