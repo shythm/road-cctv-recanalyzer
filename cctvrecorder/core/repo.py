@@ -70,23 +70,35 @@ class CCTVStreamRepo(ABC):
 
 # 녹화된 또는 녹화 중인 CCTV 영상 정보를 관리하는 레포지토리
 class CCTVRecordRepo(ABC):
-
+    
     @abstractmethod
-    def get_all(self) -> List[CCTVRecord]:
+    def find_all(self) -> List[CCTVRecord]:
         pass
 
     @abstractmethod
-    def get_by_id(self, id: int) -> CCTVRecord:
+    def find_by_id(self, id: str) -> CCTVRecord:
+        """
+        id에 맞는 CCTV 녹화 정보를 찾아 반환한다.
+        """
         pass
 
     @abstractmethod
-    def add(self, record: CCTVRecord) -> None:
+    def insert(self, record: CCTVRecord) -> CCTVRecord:
+        """
+        CCTV 녹화 정보를 추가한다.
+        """
         pass
 
     @abstractmethod
-    def update(self, record: CCTVRecord) -> None:
+    def update(self, record: CCTVRecord) -> CCTVRecord:
+        """
+        id 정보를 이용해 CCTV 녹화 정보를 수정한다.
+        """
         pass
 
     @abstractmethod
-    def delete(self, id: int) -> None:
+    def delete(self, id: str) -> None:
+        """
+        id 정보를 이용해 CCTV 녹화 정보를 삭제한다.
+        """
         pass
