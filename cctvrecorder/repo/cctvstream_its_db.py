@@ -1,3 +1,5 @@
+# TODO: 파일 이름을 cctvstream_its_db.py로 변경
+
 from __future__ import annotations
 from typing import List
 
@@ -8,7 +10,7 @@ import uuid
 from cctvrecorder.core.model import CCTVStream
 from cctvrecorder.core.repo import CCTVStreamRepo
 
-class CCTVStreamITSRepo(CCTVStreamRepo):
+class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
     DB_TABLE_NAME = "cctvstream"
     DELTA_COORD = 0.01
@@ -83,7 +85,7 @@ class CCTVStreamITSRepo(CCTVStreamRepo):
         동적으로 가져올 수 있도록 hls 프로퍼티를 재정의한다.
         """
 
-        def __init__(self, repo: CCTVStreamITSRepo, *args, **kwargs):
+        def __init__(self, repo: CCTVStreamITSDBRepo, *args, **kwargs):
             self._repo = repo
             super().__init__(hls=None, *args, **kwargs)
 

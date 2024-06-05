@@ -9,8 +9,8 @@ class CCTVStream:
     id: str
     name: str
     coord: tuple[float, float]
+    avail: bool
     hls: str = field(repr=False, default=None)
-    avail: bool = field(repr=False, default=True)
 
     """
     <왜 모델을 만드는가?, 이성호, 20240528>
@@ -32,7 +32,15 @@ class CCTVStream:
     """
 
     def __eq__(self, other):
-        return self.id == other.id
+        """
+        hls 필드는 동적으로 생성되는 값이기에 비교 대상에서 제외한다.
+        """
+        return all([
+            self.id == other.id,
+            self.name == other.name,
+            self.coord == other.coord,
+            self.avail == other.avail
+        ])
 
 
 # CCTVRecord의 상태를 정의하는 열거형
