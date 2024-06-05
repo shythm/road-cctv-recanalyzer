@@ -18,7 +18,27 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         self._cctvs = []
         self._apikey = apikey
 
-        self._conn = connect(dbpath)
+        """
+        [2024.06.05. sqlite3 스레드 관련 문제 발생, 이성호 작성]
+        sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread.
+        The object was created in thread id 139849893997440 and this is thread id 139849872635584.
+
+        SQLite는 기본적으로 멀티 스레드를 지원하지 않는다. 그런데 해당 레포를 멀티 스레드 환경에서 사용해야 한다.
+        그래서 check_same_thread=False 옵션을 주어 스레드 간 연결을 허용한다.
+
+        https://docs.python.org/3/library/sqlite3.html#sqlite3.connect
+        위의 문서를 참고했을 때, check_same_thread 옵션은 다음과 같이 설명되어 있다.
+        If False, the connection may be accessed in multiple threads;
+        write operations may need to be serialized by the user to avoid data corruption.
+        See threadsafety for more information.
+
+        즉, check_same_thread=False 옵션을 주면 여러 스레드에서 접근할 수 있지만,
+        사용자가 데이터 손상을 피하기 위해 쓰기 작업을 직렬화해야 한다는 것이다.
+        우선은 이렇게 처리하고, 추후에 다른 방법을 찾아보도록 하자.
+        """
+        # SQLite DB 연결
+        self._conn = connect(dbpath, check_same_thread=False)
+
         # 만약 테이블이 존재하지 않는다면 생성한다.
         self._conn.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.DB_TABLE_NAME} (
