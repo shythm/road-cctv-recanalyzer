@@ -61,7 +61,7 @@ class CCTVStreamRepo(ABC):
         pass
 
     @abstractmethod
-    def delete(self, id: str) -> None:
+    def delete(self, id: str):
         """
         id 정보를 이용해 CCTV 스트리밍 정보를 삭제한다.
         """
@@ -97,7 +97,7 @@ class CCTVRecordRepo(ABC):
         pass
 
     @abstractmethod
-    def delete(self, id: str) -> None:
+    def delete(self, id: str):
         """
         id 정보를 이용해 CCTV 녹화 정보를 삭제한다.
         """
