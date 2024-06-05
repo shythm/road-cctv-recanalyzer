@@ -55,4 +55,16 @@ class CCTVRecord:
     endat: datetime
     state: CCTVRecordState
     path: str
-    source: str
+    srcid: str
+
+    def __eq__(self, other):
+        return all([
+            self.id == other.id,
+            self.cctvid == other.cctvid,
+            self.reqat.replace(microsecond=0) == other.reqat.replace(microsecond=0),
+            self.startat.replace(microsecond=0) == other.startat.replace(microsecond=0),
+            self.endat.replace(microsecond=0) == other.endat.replace(microsecond=0),
+            self.state == other.state,
+            self.path == other.path,
+            self.srcid == other.srcid
+        ])
