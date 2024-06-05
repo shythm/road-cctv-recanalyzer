@@ -1,0 +1,20 @@
+{
+    "name": "road-cctv-recanalyzer",
+    "build": {
+        "dockerfile": "./dockerfile"
+    },
+    "remoteUser": "user",
+    "shutdownAction": "none",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "workspaceFolder": "/workspace",
+    "containerEnv": {
+        "PYTHONPATH": "/workspace"
+    },
+    "customizations": {
+        "vscode":{
+            "extensions": [
+                "ms-python.python"
+            ]
+        }
+    }
+}
