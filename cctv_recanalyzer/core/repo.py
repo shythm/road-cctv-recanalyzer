@@ -1,4 +1,4 @@
-from cctvrecorder.core.model import CCTVStream, CCTVRecord
+from cctv_recanalyzer.core.model import CCTVStream, CCTVRecord
 
 from abc import ABC, abstractmethod
 from typing import List

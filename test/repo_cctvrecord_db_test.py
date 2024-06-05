@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 import uuid
 import random
 
-from cctvrecorder.core.model import CCTVRecord, CCTVRecordState
-from cctvrecorder.repo.cctvrecord_db import CCTVRecordDBRepo
+from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
+from cctv_recanalyzer.repo.cctvrecord_db import CCTVRecordDBRepo
 
 class CCTVRecordDBRepoTest(unittest.TestCase):
 

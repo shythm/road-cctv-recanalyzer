@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
-from cctvrecorder.core.model import CCTVStream, CCTVRecord
+from cctv_recanalyzer.core.model import CCTVStream, CCTVRecord
 
 class CCTVRecorderSrv(ABC):
 

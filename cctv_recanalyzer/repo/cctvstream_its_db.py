@@ -1,5 +1,3 @@
-# TODO: 파일 이름을 cctvstream_its_db.py로 변경
-
 from __future__ import annotations
 from typing import List
 
@@ -7,8 +5,8 @@ from sqlite3 import connect
 import requests
 import uuid
 
-from cctvrecorder.core.model import CCTVStream
-from cctvrecorder.core.repo import CCTVStreamRepo
+from cctv_recanalyzer.core.model import CCTVStream
+from cctv_recanalyzer.core.repo import CCTVStreamRepo
 
 class CCTVStreamITSDBRepo(CCTVStreamRepo):
 

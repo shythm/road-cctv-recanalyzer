@@ -6,7 +6,7 @@ import os
 import unittest
 import requests
 
-from cctvrecorder.repo.cctvstream_its_db import CCTVStreamITSDBRepo
+from cctv_recanalyzer.repo.cctvstream_its_db import CCTVStreamITSDBRepo
 
 class TestCCTVStreamITSDBRepo(unittest.TestCase):
 

@@ -1,5 +1,5 @@
-from cctvrecorder.core.repo import CCTVRecordRepo
-from cctvrecorder.core.model import CCTVRecord, CCTVRecordState
+from cctv_recanalyzer.core.repo import CCTVRecordRepo
+from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
 
 from sqlite3 import connect
 from typing import List
