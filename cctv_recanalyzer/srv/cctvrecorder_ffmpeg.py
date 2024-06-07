@@ -1,6 +1,6 @@
-from cctv_recanalyzer.core.srv import CCTVRecorderSrv
+from cctv_recanalyzer.core.srv import CCTVRecordJobSrv
 from cctv_recanalyzer.core.repo import CCTVRecordRepo, CCTVStreamRepo
-from cctv_recanalyzer.core.model import CCTVStream, CCTVRecord, CCTVRecordState
+from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -16,7 +16,7 @@ import os
 class CCTVRecordFFmpeg(CCTVRecord):
     ffmpeg: subprocess.Popen = None
 
-class CCTVRecorderFFmpeg(CCTVRecorderSrv):
+class CCTVRecorderFFmpeg(CCTVRecordJobSrv):
     """
     ffmpeg 유틸리티를 이용하여 CCTV 영상을 녹화하는 서비스를 제공한다.
     """
@@ -30,6 +30,7 @@ class CCTVRecorderFFmpeg(CCTVRecorderSrv):
         self._output_path = output_path # 녹화 파일을 저장할 경로
 
         self._jobs: List[CCTVRecordFFmpeg] = [] # 녹화 중인 작업을 저장하는 리스트
+        self._running = True
 
         # 스케줄링을 위한 쓰레드를 생성한다.
         self._thread = threading.Thread(target=self._schedule)
@@ -39,84 +40,108 @@ class CCTVRecorderFFmpeg(CCTVRecorderSrv):
         if not os.path.exists(output_path):
             os.makedirs(output_path)
 
-    def _ffmpeg_call(self, hls: str, output_path: str) -> subprocess.Popen:
+    def _ffmpeg_call(self, hls: str, output_path: str, seconds: int) -> subprocess.Popen:
         """
         ffmpeg으로 HLS 녹화를 진행하는 프로세스를 호출한다.
-        `ffmpeg -i <HLS_URL> -c copy <OUTPUT_PATH>` 형태의 명령어를 실행한다.
+        `ffmpeg -i <HLS_URL> -c copy -t <DURATION> <OUTPUT_PATH>` 형태의 명령어를 실행한다.
         stdout, stderr는 PIPE로 처리하지 않고, 프로세스를 반환한다.
 
         [문제점, 이성호, 2024-06-05]
-        30초 녹화를 진행했을 때 40초 가량 녹화된다.
+        30초 녹화를 진행했을 때 40초 가량 녹화된다. 그 원인을 추정해보면 다음과 같다.
         (1) ffmpeg 프로세스가 종료되지 않고 계속해서 녹화를 진행하는 문제가 발생한다.
         (2) hls 특성 상 미리 받아온 선행 영상이 포함되어서 그렇다.
-        ffmpeg에서 정해진 시간 동안만 녹화를 진행할 수 있는 방법을 고민해본다.
+        ffmpeg에서 정해진 시간 동안만 녹화를 진행할 수 있도록 -t 옵션을 추가하여 해결한다.
         """
         return subprocess.Popen(
-            [self.FFMPEG_BIN, '-i', hls, '-c', 'copy', output_path],
+            [self.FFMPEG_BIN, '-i', hls, '-c', 'copy', '-t', str(seconds), output_path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
 
-    def _start(self, job: CCTVRecordFFmpeg):
+    def _start_record(self, job: CCTVRecordFFmpeg):
         """
-        CCTV 녹화 작업을 시작한다.
+        ffmpeg을 이용하여 CCTV 녹화 작업을 시작한다.
         """
+        if job.state != CCTVRecordState.PENDING:
+            raise Exception(f"CCTV 녹화 시작은 PENDING 상태에서만 가능합니다. 현재 상태: {job.state}")
+        
         cctv = self._stream_repo.find_by_id(job.cctvid)
+        seconds = (job.endat - job.startat).seconds
 
         job.startat = datetime.now() # 녹화 시작 시간 기록
-        job.ffmpeg = self._ffmpeg_call(cctv.hls, job.path) # ffmpeg 호출
+        job.ffmpeg = self._ffmpeg_call(cctv.hls, job.path, seconds) # ffmpeg 호출
         job.state = CCTVRecordState.STARTED # 녹화 상태 변경
 
-    def _stop(self, job: CCTVRecordFFmpeg):
+    def _end_record(self, job: CCTVRecordFFmpeg):
         """
-        CCTV 녹화 작업을 중지한다.
+        ffmpeg에 종료 시그널을 보내 CCTV 녹화 작업을 중지한다.
         """
+        if job.state != CCTVRecordState.STARTED:
+            raise Exception(f"CCTV 녹화 중지는 STARTED 상태에서만 가능합니다. 현재 상태: {job.state}")
+        
         job.ffmpeg.send_signal(signal.SIGQUIT) # ffmpeg 프로세스에 종료 시그널 전송
         job.endat = datetime.now() # 녹화 종료 시간 기록
         job.state = CCTVRecordState.FINISHED # 녹화 상태 변경
 
-        # jobs 배열에서 녹화 작업을 제거한다.
-        self._jobs.remove(job)
+    def _cancel_record(self, job: CCTVRecordFFmpeg):
+        """
+        CCTV 녹화 작업을 취소한다.
+        """
+        if job.state != CCTVRecordState.CANCELING:
+            raise Exception(f"CCTV 녹화 취소는 CANCELING 상태에서만 가능합니다. 현재 상태: {job.state}")
 
-        # 녹화 작업을 레포지토리에 저장한다.
-        self._record_repo.insert(job)
+        if job.ffmpeg:
+            if job.ffmpeg.poll() is None:
+                # ffmpeg 프로세스가 종료되지 않은 경우, 종료 시그널을 전송한다.
+                job.ffmpeg.send_signal(signal.SIGINT)
+            else:
+                # ffmpeg 프로세스가 종료된 경우, 녹화 파일을 삭제한다.
+                if os.path.exists(job.path):
+                    os.remove(job.path)
+                job.state = CCTVRecordState.CANCELED
+        else:
+            job.state = CCTVRecordState.CANCELED
 
     def _schedule(self):
         """
         일정 시간 간격으로 녹화 작업을 스케줄링한다.
         녹화 시작 시간이 되면 녹화 작업을 시작하며, 녹화 종료 시간이 되면 녹화 작업을 종료한다.
         """
-        while (True):
+        while (self._running):
             # jobs를 순회하며 녹화 작업을 진행한다.
             for job in self._jobs:
+
                 # 녹화 시작 시간이 되면 녹화 작업을 시작한다.
                 if job.state == CCTVRecordState.PENDING and job.startat <= datetime.now():
-                    self._start(job)
+                    self._start_record(job)
                     continue
 
                 # 녹화 종료 시간이 되면 녹화 작업을 종료한다.
                 if job.state == CCTVRecordState.STARTED and job.endat <= datetime.now():
-                    self._stop(job)
+                    self._end_record(job)
+                    continue
+
+                # 녹화 취소 시그널이 발생한 경우, 녹화 작업을 취소한다.
+                if job.state == CCTVRecordState.CANCELING:
+                    self._cancel_record(job)
+                    continue
+
+                # 녹화 작업이 완료된 경우, 레포지토리에 저장한다.
+                if job.state == CCTVRecordState.FINISHED:
+                    self._record_repo.insert(job)
+                    self._jobs.remove(job)
                     continue
 
             time.sleep(self.SCHEDULE_INTERVAL)
 
     def get_all(self) -> List[CCTVRecord]:
-        """
-        완료된 녹화 작업은 repo에서 가져오고, 진행 중인 녹화 작업은 jobs에서 가져온다.
-        """
-        recorded_jobs = self._record_repo.find_all()
-        jobs = self._jobs # copy를 하지 않고 직접 jobs를 반환하면, jobs에 대한 참조를 반환하게 된다.
-        return jobs + recorded_jobs
+        return self._jobs # copy를 하지 않고 직접 jobs를 반환하면, jobs에 대한 참조를 반환하게 된다.
 
-    def submit(self, cctv: CCTVStream, start_time: datetime, end_time: datetime) -> CCTVRecord:
-        """
-        녹화 작업을 생성하고, job 스케줄러에 추가한다.
-        """
+    def submit(self, cctvid: str, start_time: datetime, end_time: datetime) -> CCTVRecord:
         new_id = str(uuid.uuid4())
         job = CCTVRecordFFmpeg(
             id=new_id,
-            cctvid=cctv.id,
+            cctvid=cctvid,
             reqat=datetime.now(),
             startat=start_time,
             endat=end_time,
@@ -129,51 +154,21 @@ class CCTVRecorderFFmpeg(CCTVRecorderSrv):
         return job
 
     def cancel(self, id: str):
-        """
-        녹화 작업을 취소하고, jobs에서 제거한다.
-        """
         job = next((job for job in self._jobs if job.id == id), None)
-        if job is not None:
-            self._jobs.remove(job)
+        if job is None:
+            raise Exception(f"Job with id {id} not found")
+
+        job.state = CCTVRecordState.CANCELED
 
     def remove(self, id: str):
-        """
-        녹화 작업을 삭제하고, repo에서 제거한다.
-        """
-        self.cancel(id)
-        self._record_repo.delete(id)
-
-if __name__ == '__main__':
-    from cctv_recanalyzer.core.model import CCTVStream
-    from cctv_recanalyzer.repo.cctvstream_its_db import CCTVStreamITSDBRepo
-    from cctv_recanalyzer.repo.cctvrecord_db import CCTVRecordDBRepo
-
-    stream_repo = CCTVStreamITSDBRepo("test.db", "0bae84b50c704db19bac22df144c21b4")
-    record_repo = CCTVRecordDBRepo("test.db")
-
-    cctv = stream_repo.create("[서해안선] 서평택", (126.868976, 36.997973))
-    stream_repo.insert(cctv)
-
-    recorder = CCTVRecorderFFmpeg(stream_repo, record_repo, './output')
+        job = next((job for job in self._jobs if job.id == id), None)
+        if job is None:
+            raise Exception(f"{id} 작업을 찾을 수 없습니다.")
+        if job.state != CCTVRecordState.CANCELED:
+            raise Exception(f"{id} 작업이 취소되지 않았기에 삭제할 수 없습니다. 현재 상태: {job.state}")
+        
+        self._jobs.remove(job)
     
-    print(recorder.get_all())
-    time.sleep(1)
-
-    record = recorder.submit(cctv, datetime.now(), datetime.now() + timedelta(seconds=30))
-    print(record)
-    time.sleep(1)
-
-    started_time = time.time()
-    while (record.state != CCTVRecordState.FINISHED):
-        print(record.state, time.time() - started_time)
-        time.sleep(1)
-
-    """
-    [이성호, 2024-06-05]
-    sqlite3에 스레딩 관련 설정을 해주었지만 여전히 
-    sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread.
-    에러가 발생한다.
-    이를 해결해야 할 것 같다.
-    """
-
-    print(recorder.get_all())
+    def stop(self):
+        self._running = False
+        self._thread.join()

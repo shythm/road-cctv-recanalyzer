@@ -47,9 +47,10 @@ class CCTVStream:
 class CCTVRecordState(Enum):
     PENDING = 1     # 녹화의 시작을 기다리는 상태
     STARTED = 2     # 녹화가 시작된 상태
-    CANCELD = 3     # 녹화가 사용자에 의해 취소된 상태
-    FINISHED = 4    # 녹화가 완료된 상태
-    UNKNOWN = 5     # 알 수 없는 오류로 녹화 상태를 알 수 없을 때
+    CANCELING = 3   # 녹화가 취소되는 중인 상태
+    CANCELED = 4    # 녹화가 사용자에 의해 취소된 상태
+    FINISHED = 5    # 녹화가 완료된 상태
+    UNKNOWN = 6     # 알 수 없는 오류로 녹화 상태를 알 수 없을 때
 
 
 # CCTV 녹화 정보를 담는 데이터 클래스
