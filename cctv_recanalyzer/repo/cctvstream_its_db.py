@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List
 
-from sqlite3 import connect
+from sqlite3 import connect, threadsafety as sqlite3_threadsafety
 import requests
 import uuid
 
@@ -17,31 +17,46 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
     def __init__(self, dbpath: str, apikey: str):
         self._cctvs = []
         self._apikey = apikey
+        self._db_table_name = self.DB_TABLE_NAME
 
         """
-        [2024.06.05. sqlite3 스레드 관련 문제 발생, 이성호 작성]
+        [2024.06.07. sqlite3 스레드 관련 문제 발생, 이성호 작성]
+        아래의 에러가 발생했다.
         sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread.
         The object was created in thread id 139849893997440 and this is thread id 139849872635584.
 
-        SQLite는 기본적으로 멀티 스레드를 지원하지 않는다. 그런데 해당 레포를 멀티 스레드 환경에서 사용해야 한다.
-        그래서 check_same_thread=False 옵션을 주어 스레드 간 연결을 허용한다.
+        sqlite3를 사용하는데 있어 thread-safety를 확인해야 한다.
+        https://docs.python.org/3.11/library/sqlite3.html#sqlite3.threadsafety
+        위의 문서를 참고했을 때, sqlite3.threadsafety가 3이면 serialized 상태로,
+        멀티 스레드 환경에서 sqlite3 module과 그 connection 또한 멀티스레딩 환경에서 안전하다고 설명한다.
 
+        그리고 에러를 해결하기 위해 connect 메서드를 호출할 때 옵션을 주어야 하는데,
         https://docs.python.org/3/library/sqlite3.html#sqlite3.connect
-        위의 문서를 참고했을 때, check_same_thread 옵션은 다음과 같이 설명되어 있다.
         If False, the connection may be accessed in multiple threads;
         write operations may need to be serialized by the user to avoid data corruption.
         See threadsafety for more information.
-
-        즉, check_same_thread=False 옵션을 주면 여러 스레드에서 접근할 수 있지만,
-        사용자가 데이터 손상을 피하기 위해 쓰기 작업을 직렬화해야 한다는 것이다.
-        우선은 이렇게 처리하고, 추후에 다른 방법을 찾아보도록 하자.
+        위의 내용을 참고하면, connect 메서드를 호출할 때 check_same_thread=False 옵션을 주어
+        같은 커넥션을 서로 다른 스레드에서 사용할 수 있도록 이를 무시하도록 한다.
         """
-        # SQLite DB 연결
-        self._conn = connect(dbpath, check_same_thread=False)
+        if sqlite3_threadsafety != 3:
+            raise Exception("sqlite3 is not thread-safe (not serialized)")
 
-        # 만약 테이블이 존재하지 않는다면 생성한다.
+        # sqlite3 DB 연결
+        self._conn = connect(dbpath, check_same_thread=False)
+        self._init_db()
+    
+    def _init_db(self):
+        """
+        아래의 스키마대로 테이블을 생성한다.
+        id: UUID
+        name: CCTV 이름
+        coordx: CCTV 경도
+        coordy: CCTV 위도
+        avail: 해당 스트림 사용 가능 여부
+        """
+
         self._conn.execute(f"""
-            CREATE TABLE IF NOT EXISTS {self.DB_TABLE_NAME} (
+            CREATE TABLE IF NOT EXISTS {self._db_table_name} (
                 id TEXT PRIMARY KEY,
                 name TEXT,
                 coordx REAL,
@@ -49,6 +64,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
                 avail INTEGER
             )
         """)
+        self._conn.commit()
 
     def _fetch_its(self, x, y):
         """
@@ -137,7 +153,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         avail = 1 if cctv.avail else 0
 
         self._conn.execute(f"""
-            INSERT INTO {self.DB_TABLE_NAME} (id, name, coordx, coordy, avail)
+            INSERT INTO {self._db_table_name} (id, name, coordx, coordy, avail)
             VALUES (?, ?, ?, ?, ?)
         """, (id, name, coordx, coordy, avail))
 
@@ -151,7 +167,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         avail = 1 if cctv.avail else 0
 
         cur = self._conn.execute(f"""
-            UPDATE {self.DB_TABLE_NAME}
+            UPDATE {self._db_table_name}
             SET name = ?, coordx = ?, coordy = ?, avail = ?
             WHERE id = ?
         """, (name, coordx, coordy, avail, id))
@@ -164,7 +180,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
     def delete(self, id: str) -> None:
         cur = self._conn.execute(f"""
-            DELETE FROM {self.DB_TABLE_NAME}
+            DELETE FROM {self._db_table_name}
             WHERE id = ?
         """, (id,))
 
@@ -177,7 +193,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
     def find_all(self) -> List[CCTVStream]:
         cur = self._conn.execute(f"""
             SELECT id, name, coordx, coordy, avail
-            FROM {self.DB_TABLE_NAME}
+            FROM {self._db_table_name}
         """)
 
         return [self.CCTVStreamITS(
@@ -191,7 +207,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
     def find_by_id(self, id: str) -> CCTVStream:
         cur = self._conn.execute(f"""
             SELECT id, name, coordx, coordy, avail
-            FROM {self.DB_TABLE_NAME}
+            FROM {self._db_table_name}
             WHERE id = ?
         """, (id,))
         

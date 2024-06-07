@@ -1,7 +1,7 @@
 from cctv_recanalyzer.core.repo import CCTVRecordRepo
 from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
 
-from sqlite3 import connect
+from sqlite3 import connect, threadsafety as sqlite3_threadsafety
 from typing import List
 from datetime import datetime
 
@@ -10,10 +10,29 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
     DB_TABLE_NAME = "cctvrecord"
 
     def __init__(self, dbpath: str):
-        self._conn = connect(dbpath)
-        
-        # 만약 테이블이 존재하지 않는다면 생성한다.
-        # 이때 state 필드는 녹화 상태를 나타내며, repo에 저장하는 것들은 모두 녹화가 완료된 상태(FINISHED)로 가정한다.
+
+        # sqlite3 connection thread-safe checking
+        # see https://docs.python.org/3.11/library/sqlite3.html#sqlite3.threadsafety
+        # multi-threading 환경에서의 connection 관련 내용은 cctvstream_its_db.py 참고
+        if sqlite3_threadsafety != 3:
+            raise Exception("sqlite3 is not thread-safe (not serialized)")
+
+        # sqlite3 DB 연결
+        self._conn = connect(dbpath, check_same_thread=False)
+        self._init_db()
+
+    def _init_db(self):
+        """
+        아래의 스키마대로 테이블을 생성한다.
+        id: UUID
+        cctvid: CCTVStream 모델의 id
+        reqat: 녹화 요청 시간
+        startat: 녹화 시작 시간
+        endat: 녹화 종료 시간
+        path: 녹화 파일 경로
+        srcid: 녹화 소스 id
+        state: 녹화 상태, repo에 저장하는 것들은 모두 녹화가 완료된 상태(FINISHED)이다.
+        """
         self._conn.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.DB_TABLE_NAME} (
                 id TEXT PRIMARY KEY,
@@ -26,6 +45,7 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
                 state INTEGER DEFAULT {CCTVRecordState.FINISHED.value}
             )
         """)
+        self._conn.commit()
 
     def _datetime_to_str(self, dt: datetime) -> str:
         # 국제 표준 포맷인 ISO 8601 형식으로 변환
