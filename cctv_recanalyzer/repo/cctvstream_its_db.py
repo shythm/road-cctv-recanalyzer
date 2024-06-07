@@ -213,7 +213,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         
         row = cur.fetchone()
         if row is None:
-            return None
+            raise Exception(f"'{id}'에 해당하는 CCTV가 존재하지 않습니다.")
         
         return self.CCTVStreamITS(
             self,

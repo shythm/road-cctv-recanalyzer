@@ -34,20 +34,20 @@ class TestCCTVStreamITSDBRepo(unittest.TestCase):
         saved_stream = self.repo.find_by_id(stream.id)
         self.assertEqual(saved_stream, stream)
 
+        # 없는 데이터를 조회하려고 할 때
+        with self.assertRaises(Exception):
+            self.repo.find_by_id("non-exist-id")
+
     def test_remove(self):
         stream = self._create_cctvstream()
         self.repo.insert(stream)
         saved_stream = self.repo.find_by_id(stream.id)
         self.assertEqual(saved_stream, stream)
 
-        # 데이터를 삭제하고, 다시 조회했을 때 None이 반환되는지 확인
+        # 데이터를 삭제하고, 다시 조회했을 때 예외가 발생하는지 확인
         self.repo.delete(saved_stream.id)
-        saved_stream = self.repo.find_by_id(saved_stream.id)
-        self.assertIsNone(saved_stream)
-
-        # 없는 데이터를 삭제하려고 할 때
         with self.assertRaises(Exception):
-            self.repo.delete("non-exist-id")
+            saved_stream = self.repo.find_by_id(saved_stream.id)
 
     def test_update(self):
         stream = self._create_cctvstream()
