@@ -1,7 +1,8 @@
 {
     "name": "road-cctv-recanalyzer",
     "build": {
-        "dockerfile": "./dockerfile"
+        "dockerfile": "./dockerfile",
+        "context": "../"
     },
     "remoteUser": "user",
     "shutdownAction": "none",
