@@ -9,21 +9,22 @@ from cctv_recanalyzer.http.flask_injector import FlaskInjector
 from datetime import datetime
 
 from cctv_recanalyzer.core.model import CCTVRecord
-from cctv_recanalyzer.core.srv import CCTVRecordJobSrv
+from cctv_recanalyzer.core.srv import CCTVRecorder
 
 class CCTVRecorderView(FlaskInjector):
-    def __init__(self, cctv_recorder: CCTVRecordJobSrv):
+    def __init__(self, cctv_recorder: CCTVRecorder):
         self._recorder = cctv_recorder
 
     def _conv_record(self, record: CCTVRecord):
         return {
             'id': record.id,
-            'state': record.state.name,
             'cctvid': record.cctvid,
             'reqat': record.reqat,
             'startat': record.startat,
             'endat': record.endat,
-            'srcid': record.srcid,
+            'path': record.path,
+            'state': record.state.name,
+            'progress': record.progress
         }
 
     def _get_all_record(self):

@@ -2,11 +2,12 @@ from __future__ import annotations
 from typing import List
 
 from sqlite3 import connect, threadsafety as sqlite3_threadsafety
+from dataclasses import dataclass
 import requests
 import uuid
 
-from cctv_recanalyzer.core.model import CCTVStream
-from cctv_recanalyzer.core.repo import CCTVStreamRepo
+from core.model import CCTVStream
+from core.repo import CCTVStreamRepo
 
 class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
@@ -86,7 +87,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
         if res.status_code != 200:
             raise Exception("API 호출에 실패하였습니다.")
-
+  
         """
         cctvtype    string  CCTV 유형(1: 실시간 스트리밍(HLS) / 2: 동영상 파일 / 3: 정지 영상)
         cctvurl     string  CCTV 영상 주소
@@ -96,6 +97,10 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         cctvname    string  CCTV 설치 장소명
         """
         data = res.json()['response']['data']
+        
+        # [2024.06.12.] data가 배열이 아닐 경우도 있다.
+        if not isinstance(data, list):
+            data = [data]
 
         # 유클리드 거리를 이용하여 가장 가까운 CCTV를 찾는다.
         min_dist = float("inf")
@@ -113,23 +118,24 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
         return min_cctv
 
+    @dataclass
     class CCTVStreamITS(CCTVStream):
         """
         CCTVStream dataclass 클래스를 상속받아 ITS 국가교통정보센터의 CCTV HLS 주소를
         동적으로 가져올 수 있도록 hls 프로퍼티를 재정의한다.
         """
-
-        def __init__(self, repo: CCTVStreamITSDBRepo, *args, **kwargs):
-            self._repo = repo
-            super().__init__(hls=None, *args, **kwargs)
+        repo: CCTVStreamITSDBRepo=None
 
         @property
         def hls(self) -> str:
-            return self._repo._fetch_its(self.coord[0], self.coord[1])['cctvurl']
+            return self.repo._fetch_its(self.coord[0], self.coord[1])['cctvurl']
         
         @hls.setter
         def hls(self, value: str):
             pass
+
+        def __eq__(self, other):
+            return super().__eq__(other)
 
     def create(self, name: str, coord: tuple[float, float]) -> CCTVStream:
         """
@@ -197,7 +203,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         """)
 
         return [self.CCTVStreamITS(
-            self,
+            repo=self,
             id=row[0],
             name=row[1],
             coord=(row[2], row[3]),
@@ -216,7 +222,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
             raise Exception(f"'{id}'에 해당하는 CCTV가 존재하지 않습니다.")
         
         return self.CCTVStreamITS(
-            self,
+            repo=self,
             id=row[0],
             name=row[1],
             coord=(row[2], row[3]),

@@ -7,8 +7,10 @@ from datetime import datetime, timedelta
 import uuid
 import random
 
-from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
-from cctv_recanalyzer.repo.cctvrecord_db import CCTVRecordDBRepo
+import sys
+sys.path.append('..')
+from core.model import CCTVRecord, CCTVRecordState
+from repo.cctvrecord_db import CCTVRecordDBRepo
 
 class CCTVRecordDBRepoTest(unittest.TestCase):
 
@@ -31,8 +33,8 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
             startat=datetime.now(),
             endat=datetime.now() + timedelta(hours=1),
             path=f"/tmp/test{random.randint(0, 100)}.mp4",
-            srcid=None,
-            state=CCTVRecordState.FINISHED
+            state=CCTVRecordState.FINISHED,
+            progress=1.0
         )
 
     def test_insert(self):
@@ -64,7 +66,7 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
         self.assertEqual(saved_record, record)
 
         # 데이터를 수정하고, 다시 조회했을 때 수정된 데이터가 반환되는지 확인
-        record.state = CCTVRecordState.CANCELED
+        record.path = "/tmp/updated.mp4"
         self.repo.update(record)
         saved_record = self.repo.find_by_id(record.id)
         self.assertEqual(saved_record, record)

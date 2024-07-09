@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
-from cctv_recanalyzer.core.model import CCTVStream, CCTVRecord
+from cctv_recanalyzer.core.model import CCTVRecord
 
-class CCTVRecordJobSrv(ABC):
+class CCTVRecorder(ABC):
 
     """
     CCTV 관련 녹화/처리 작업을 관리하는 서비스를 정의한다.
@@ -14,6 +14,20 @@ class CCTVRecordJobSrv(ABC):
     - 그 외의 상태에 대해서는 메모리 상에서 관리할 수 있도록 한다.
     """
     
+    @abstractmethod
+    def start(self):
+        """
+        CCTVRecord 스케줄링 작업을 시작한다.
+        """
+        pass
+
+    @abstractmethod
+    def stop(self):
+        """
+        CCTVRecord 스케줄링 작업을 중지한다.
+        """
+        pass
+
     @abstractmethod
     def get_all(self) -> List[CCTVRecord]:
         """

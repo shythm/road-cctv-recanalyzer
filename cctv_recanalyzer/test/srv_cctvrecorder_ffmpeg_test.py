@@ -1,46 +1,55 @@
 """
 testing cctvrecorder_ffmpeg.py using unittest
 """
+import sys
+sys.path.append('..')
 
 import unittest
 
-from cctv_recanalyzer.srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
-from cctv_recanalyzer.repo.cctvstream_its_db import CCTVStreamITSDBRepo
-from cctv_recanalyzer.repo.cctvrecord_db import CCTVRecordDBRepo
+from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
+from repo.cctvstream_its_db import CCTVStreamITSDBRepo
+from repo.cctvrecord_db import CCTVRecordDBRepo
 
-from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
+from core.model import CCTVRecord, CCTVRecordState
 
 from datetime import datetime, timedelta
 import os
 import time
 import cv2
 
-class TestCCTVRecorderFFmpeg(unittest.TestCase):
-    def setUp(self):
+class UnitTester(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
         # read apikey from `api.key` file
         with open("api.key", "r") as f:
             apikey = f.read().strip()
 
-        self.output_path = "../output"
-        self.db_path = "test_srv_cctvrecorder_ffmpeg.db"
-        stream_repo = CCTVStreamITSDBRepo(self.db_path, apikey)
-        record_repo = CCTVRecordDBRepo(self.db_path)
+        cls.db_path = "test_srv_cctvrecorder_ffmpeg.db"
+        stream_repo = CCTVStreamITSDBRepo(cls.db_path, apikey)
+        record_repo = CCTVRecordDBRepo(cls.db_path)
 
-        self.recorder = CCTVRecorderFFmpeg(
+        cls.recorder = CCTVRecorderFFmpeg(
             stream_repo=stream_repo,
             record_repo=record_repo,
-            output_path=self.output_path
+            output_path="output",
+            logging_path="log"
         )
+        cls.recorder.start()
+        cls.interval = cls.recorder.SCHEDULE_INTERVAL
 
         # create sample stream
-        self.cctv1 = stream_repo.create("[서해안선] 서평택", (126.868976, 36.997973))
-        stream_repo.insert(self.cctv1)
-        self.cctv2 = stream_repo.create("[서해안선] 서해주탑", (126.838330, 36.950560))
-        stream_repo.insert(self.cctv2)
+        cls.cctv = [
+            stream_repo.create("[서해안선] 서평택", (126.868976, 36.997973)),
+            stream_repo.create("[서해안선] 서해주탑", (126.838330, 36.950560)),
+        ]
+        for cctv in cls.cctv:
+            stream_repo.insert(cctv)
 
-    def tearDown(self):
-        self.recorder.stop()
-        os.remove(self.db_path)
+    @classmethod
+    def tearDownClass(cls):
+        cls.recorder.stop()
+        os.remove(cls.db_path)
         
     def _assert_duration(self, path: str, duration: int):
         cap = cv2.VideoCapture(path)
@@ -57,16 +66,16 @@ class TestCCTVRecorderFFmpeg(unittest.TestCase):
         제출할 작업의 시작 시간은 1시간 뒤로 설정한다.
         """
         record = self.recorder.submit(
-            self.cctv1.id, datetime.now(), datetime.now() + timedelta(hours=1)
+            UnitTester.cctv[0].id, datetime.now(), datetime.now() + timedelta(hours=1)
         )
         self.assertIsInstance(record, CCTVRecord)
 
-        jobs = self.recorder.get_all()
+        jobs = UnitTester.recorder.get_all()
         self.assertIn(record, jobs)
         self.assertEqual(record.state, CCTVRecordState.PENDING)
 
-        self.recorder.cancel(record.id)
-        time.sleep(self.recorder.SCHEDULE_INTERVAL * 2)
+        UnitTester.recorder.cancel(record.id)
+        time.sleep(UnitTester.interval * 2)
         self.assertEqual(record.state, CCTVRecordState.CANCELED)
 
     def test_submit_wait(self):
@@ -74,12 +83,12 @@ class TestCCTVRecorderFFmpeg(unittest.TestCase):
         녹화 작업을 제출하고, 작업이 완료되기를 기다린다.
         """
         seconds = 5
-        record = self.recorder.submit(
-            self.cctv2.id, datetime.now(), datetime.now() + timedelta(seconds=seconds)
+        record = UnitTester.recorder.submit(
+            UnitTester.cctv[1].id, datetime.now(), datetime.now() + timedelta(seconds=seconds)
         )
         self.assertIsInstance(record, CCTVRecord)
 
-        time.sleep(seconds + self.recorder.SCHEDULE_INTERVAL * 2)
+        time.sleep(seconds + UnitTester.interval * 2)
         self.assertEqual(record.state, CCTVRecordState.FINISHED)
 
         # check if the file is created
@@ -92,7 +101,7 @@ class TestCCTVRecorderFFmpeg(unittest.TestCase):
         제출할 작업의 시작 시간은 1시간 뒤로 설정한다.
         """
         record = self.recorder.submit(
-            self.cctv1.id, datetime.now(), datetime.now() + timedelta(hours=1)
+            UnitTester.cctv[0].id, datetime.now(), datetime.now() + timedelta(hours=1)
         )
         self.assertIsInstance(record, CCTVRecord)
 
@@ -101,9 +110,9 @@ class TestCCTVRecorderFFmpeg(unittest.TestCase):
         self.assertEqual(record.state, CCTVRecordState.PENDING)
 
         self.recorder.cancel(record.id)
-        time.sleep(self.recorder.SCHEDULE_INTERVAL * 2)
+        time.sleep(UnitTester.interval * 2)
         self.recorder.remove(record.id)
-        time.sleep(self.recorder.SCHEDULE_INTERVAL * 2)
+        time.sleep(UnitTester.interval * 2)
         self.assertNotIn(record, self.recorder.get_all())
 
     def test_multiple_submit(self):
@@ -112,13 +121,13 @@ class TestCCTVRecorderFFmpeg(unittest.TestCase):
         """
         seconds = 5
         record1 = self.recorder.submit(
-            self.cctv1.id, datetime.now(), datetime.now() + timedelta(seconds=seconds * 2)
+            UnitTester.cctv[0].id, datetime.now(), datetime.now() + timedelta(seconds=seconds * 2)
         )
         record2 = self.recorder.submit(
-            self.cctv2.id, datetime.now() + timedelta(seconds=2), datetime.now() + timedelta(seconds=2 + seconds)
+            UnitTester.cctv[1].id, datetime.now() + timedelta(seconds=2), datetime.now() + timedelta(seconds=2 + seconds)
         )
 
-        time.sleep(seconds * 2 + self.recorder.SCHEDULE_INTERVAL * 2)
+        time.sleep(seconds * 2 + UnitTester.interval * 2)
         self.assertEqual(record1.state, CCTVRecordState.FINISHED)
         self.assertEqual(record2.state, CCTVRecordState.FINISHED)
 

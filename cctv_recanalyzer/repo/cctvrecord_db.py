@@ -30,8 +30,8 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
         startat: 녹화 시작 시간
         endat: 녹화 종료 시간
         path: 녹화 파일 경로
-        srcid: 녹화 소스 id
-        state: 녹화 상태, repo에 저장하는 것들은 모두 녹화가 완료된 상태(FINISHED)이다.
+        state: 녹화 상태
+        progress: 녹화 진행률
         """
         self._conn.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.DB_TABLE_NAME} (
@@ -41,8 +41,8 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
                 startat TEXT,
                 endat TEXT,
                 path TEXT,
-                srcid TEXT,
-                state INTEGER DEFAULT {CCTVRecordState.FINISHED.value}
+                state INTEGER DEFAULT {CCTVRecordState.FINISHED.value},
+                progress REAL DEFAULT 1.0
             )
         """)
         self._conn.commit()
@@ -56,7 +56,7 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
 
     def find_all(self) -> List[CCTVRecord]:
         cur = self._conn.execute(f"""
-            SELECT id, cctvid, reqat, startat, endat, path, srcid, state
+            SELECT id, cctvid, reqat, startat, endat, path, state, progress
             FROM {self.DB_TABLE_NAME}                     
         """)
 
@@ -67,13 +67,13 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
             startat=self._str_to_datetime(row[3]),
             endat=self._str_to_datetime(row[4]),
             path=row[5],
-            srcid=row[6],
-            state=CCTVRecordState(row[7])
+            state=CCTVRecordState(row[6]),
+            progress=row[7]
         ) for row in cur.fetchall()]
 
     def find_by_id(self, id: str) -> CCTVRecord:
         cur = self._conn.execute(f"""
-            SELECT id, cctvid, reqat, startat, endat, path, srcid, state
+            SELECT id, cctvid, reqat, startat, endat, path, state, progress
             FROM {self.DB_TABLE_NAME}
             WHERE id = ?
         """, (id,))
@@ -89,13 +89,13 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
             startat=self._str_to_datetime(row[3]),
             endat=self._str_to_datetime(row[4]),
             path=row[5],
-            srcid=row[6],
-            state=CCTVRecordState(row[7])
+            state=CCTVRecordState(row[6]),
+            progress=row[7]
         )
 
     def insert(self, record: CCTVRecord) -> CCTVRecord:
         self._conn.execute(f"""
-            INSERT INTO {self.DB_TABLE_NAME} (id, cctvid, reqat, startat, endat, path, srcid, state)
+            INSERT INTO {self.DB_TABLE_NAME} (id, cctvid, reqat, startat, endat, path, state, progress)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.id,
@@ -104,8 +104,8 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
             self._datetime_to_str(record.startat),
             self._datetime_to_str(record.endat),
             record.path,
-            record.srcid,
-            record.state.value
+            record.state.value,
+            record.progress
         ))
 
         self._conn.commit()
@@ -114,7 +114,7 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
     def update(self, record: CCTVRecord) -> CCTVRecord:
         cur = self._conn.execute(f"""
             UPDATE {self.DB_TABLE_NAME}
-            SET cctvid = ?, reqat = ?, startat = ?, endat = ?, path = ?, srcid = ?, state = ?
+            SET cctvid = ?, reqat = ?, startat = ?, endat = ?, path = ?, state = ?, progress = ?
             WHERE id = ?
         """, (
             record.cctvid,
@@ -122,8 +122,8 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
             self._datetime_to_str(record.startat),
             self._datetime_to_str(record.endat),
             record.path,
-            record.srcid,
             record.state.value,
+            record.progress,
             record.id
         ))
 

@@ -1,12 +1,16 @@
+import sys
+sys.path.append('.')
+
 import os
 from dotenv import load_dotenv
 from flask import Flask
+import signal
 
-from cctv_recanalyzer.core.repo import CCTVStreamRepo, CCTVRecordRepo
+from core.repo import CCTVStreamRepo, CCTVRecordRepo
 
-from cctv_recanalyzer.repo.cctvstream_its_db import CCTVStreamITSDBRepo
-from cctv_recanalyzer.repo.cctvrecord_db import CCTVRecordDBRepo
-from cctv_recanalyzer.srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
+from repo.cctvstream_its_db import CCTVStreamITSDBRepo
+from repo.cctvrecord_db import CCTVRecordDBRepo
+from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
 from cctv_recanalyzer.http.cctvstream import CCTVStreamView
 from cctv_recanalyzer.http.cctvrecorder import CCTVRecorderView
 
@@ -25,7 +29,13 @@ DEBUG_MODE = os.getenv('PRODUCTION') != 'production'
 
 stream_repo: CCTVStreamRepo = CCTVStreamITSDBRepo(SQLITE3_DB_PATH, ITS_API_KEY)
 record_repo: CCTVRecordRepo = CCTVRecordDBRepo(SQLITE3_DB_PATH)
-cctv_recorder = CCTVRecorderFFmpeg(stream_repo, record_repo, RECORD_OUTPUT_PATH)
+cctv_recorder = CCTVRecorderFFmpeg(stream_repo, record_repo, RECORD_OUTPUT_PATH, logging_path='logs')
+cctv_recorder.start()
+
+def signal_handler(sig, frame):
+    cctv_recorder.stop()
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == "__main__":
     app = Flask(__name__)
