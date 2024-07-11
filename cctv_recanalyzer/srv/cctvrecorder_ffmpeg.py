@@ -11,6 +11,7 @@ import threading
 import signal
 import uuid
 import os
+from util import get_logger
 
 @dataclass
 class CCTVRecordFFmpeg(CCTVRecord):
@@ -33,8 +34,10 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
         self._stream_repo = stream_repo
         self._record_repo = record_repo
         self._output_path = output_path # 녹화 파일을 저장할 경로
+        self._logger = get_logger(__name__)
         self._logging_path = logging_path # 로그 파일을 저장할 경로(없으면 로그 파일을 저장하지 않는다.)
 
+        self._lock = threading.Lock()
         self._jobs: List[CCTVRecordFFmpeg] = [] # 녹화 중인 작업을 저장하는 리스트
         self._cancel_req: List[CCTVRecordFFmpeg] = [] # 녹화 취소 요청을 저장하는 리스트
         self._running = True
@@ -50,6 +53,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
     def start(self):
         self._thread = threading.Thread(target=self._schedule)
         self._thread.start()
+        self._logger.info("CCTVRecorderFFmpeg started.")
 
     def stop(self):
         self._running = False
@@ -69,6 +73,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
         녹화 시작 시간이 되면 녹화 작업을 시작하며, 녹화 종료 시간이 되면 녹화 작업을 종료한다.
         """
         while (self._running):
+            self._lock.acquire()
             try:
                 for job in self._jobs:
 
@@ -79,7 +84,6 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                         행위: ffmpeg을 이용하여 CCTV 녹화 작업을 시작한다.
                         """
                         if job.startat <= datetime.now():
-                            cctv = self._stream_repo.find_by_id(job.cctvid)
                             seconds = (job.endat - job.startat).seconds
                             job.startat = datetime.now()
                             if self._logging_path:
@@ -87,13 +91,15 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                                 job.stderr = open(os.path.join(self._logging_path, f'{job.id}.err'), 'w')
 
                             # call ffmpeg: ffmpeg -i <HLS_URL> -c copy -t <DURATION> <OUTPUT_PATH>
+                            hls = self._stream_repo.get_hls_by_id(job.cctvid)
                             job.ffmpeg = subprocess.Popen(
-                                [self.FFMPEG_BIN, '-i', cctv.hls, '-c', 'copy', '-t', str(seconds), job.path],
+                                [self.FFMPEG_BIN, '-i', hls, '-c', 'copy', '-t', str(seconds), job.path],
                                 stdout=job.stdout if job.stdout else subprocess.DEVNULL,
                                 stderr=job.stderr if job.stderr else subprocess.DEVNULL,
                                 stdin=subprocess.DEVNULL,
                             )
                             job.state = CCTVRecordState.STARTED
+                            self._logger.info(f"{job.id}: PENDING -> STARTED")
 
                     elif job.state == CCTVRecordState.STARTED:
                         # progress 갱신
@@ -109,6 +115,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                             job.ffmpeg.send_signal(signal.SIGINT)
                             job.endat = datetime.now()
                             job.state = CCTVRecordState.CANCELING
+                            self._logger.info(f"{job.id}: STARTED -> CANCELING")
 
                         elif job.endat <= datetime.now():
                             """
@@ -119,6 +126,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                             job.ffmpeg.send_signal(signal.SIGTERM)
                             job.endat = datetime.now()
                             job.state = CCTVRecordState.FINISHING
+                            self._logger.info(f"{job.id}: STARTED -> FINISHING")
 
                         elif job.ffmpeg.poll() is not None:
                             """
@@ -128,8 +136,10 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                             """
                             if job.ffmpeg.returncode != 0:
                                 job.state = CCTVRecordState.FAILED
+                                self._logger.info(f"{job.id}: STARTED -> FAILED")
                             else:
                                 job.state = CCTVRecordState.FINISHED
+                                self._logger.info(f"{job.id}: STARTED -> FINISHED")
 
                     elif job.state == CCTVRecordState.CANCELING:
                         """
@@ -142,6 +152,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                                 os.remove(job.path)
                             self._cancel_req.remove(job)
                             job.state = CCTVRecordState.CANCELED
+                            self._logger.info(f"{job.id}: CANCELING -> CANCELED")
 
                     elif job.state == CCTVRecordState.FINISHING:
                         """
@@ -152,6 +163,7 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                             self._record_repo.insert(job)
                             self._jobs.remove(job)
                             job.state = CCTVRecordState.FINISHED
+                            self._logger.info(f"{job.id}: FINISHING -> FINISHED")
 
                     elif job.state == CCTVRecordState.CANCELED:
                         self._close_job(job)
@@ -163,25 +175,29 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
                         self._close_job(job)
 
             except Exception as e:
-                print(e)
+                self._logger.error(e)
 
+            self._lock.release()
             time.sleep(self.SCHEDULE_INTERVAL)
 
-        # self._running이 False가 되면 스케줄링을 종료한다. 그리고 ffmpeg 프로세스들도 종료한다.
-        for job in self._jobs:
-            if job.ffmpeg:
-                job.ffmpeg.send_signal(signal.SIGTERM)
-        
-        print("Waiting for all ffmpeg processes to finish...")
-        for job in self._jobs:
-            if job.ffmpeg:
-                job.ffmpeg.wait()
-                if os.path.exists(job.path):
-                    os.remove(job.path)
-            self._close_job(job)
+        with self._lock:
+            # self._running이 False가 되면 스케줄링을 종료한다. 그리고 ffmpeg 프로세스들도 종료한다.
+            for job in self._jobs:
+                if job.ffmpeg:
+                    job.ffmpeg.send_signal(signal.SIGTERM)
+            
+            self._logger.info("Waiting for all ffmpeg processes to finish...")
+            for job in self._jobs:
+                if job.ffmpeg:
+                    job.ffmpeg.wait()
+                    if os.path.exists(job.path):
+                        os.remove(job.path)
+                self._close_job(job)
 
     def get_all(self) -> List[CCTVRecord]:
-        return self._jobs
+        with self._lock:
+            jobs = self._jobs.copy()
+        return jobs
 
     def submit(self, cctvid: str, start_time: datetime, end_time: datetime) -> CCTVRecord:
         if end_time <= start_time or end_time <= datetime.now():
@@ -199,24 +215,27 @@ class CCTVRecorderFFmpeg(CCTVRecorder):
             progress=0.0
         )
 
-        self._jobs.append(job)
+        with self._lock:
+            self._jobs.append(job)
         return job
 
     def cancel(self, id: str):
-        job = next((job for job in self._jobs if job.id == id), None)
-        if job is None:
-            raise Exception(f"{id} 작업을 찾을 수 없습니다.")
+        with self._lock:
+            job = next((job for job in self._jobs if job.id == id), None)
+            if job is None:
+                raise Exception(f"{id} 작업을 찾을 수 없습니다.")
 
-        job.state = CCTVRecordState.CANCELED
+            job.state = CCTVRecordState.CANCELED
 
     def remove(self, id: str):
-        job = next((job for job in self._jobs if job.id == id), None)
-        if job is None:
-            raise Exception(f"{id} 작업을 찾을 수 없습니다.")
-        if job.state != CCTVRecordState.CANCELED:
-            raise Exception(f"{id} 작업이 취소되지 않았기에 삭제할 수 없습니다. 현재 상태: {job.state}")
-        
-        self._jobs.remove(job)
+        with self._lock:
+            job = next((job for job in self._jobs if job.id == id), None)
+            if job is None:
+                raise Exception(f"{id} 작업을 찾을 수 없습니다.")
+            if job.state != CCTVRecordState.CANCELED:
+                raise Exception(f"{id} 작업이 취소되지 않았기에 삭제할 수 없습니다. 현재 상태: {job.state}")
+            
+            self._jobs.remove(job)
 
     def stop(self):
         self._running = False
