@@ -118,24 +118,43 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
 
         return min_cctv
 
-    @dataclass
-    class CCTVStreamITS(CCTVStream):
-        """
-        CCTVStream dataclass 클래스를 상속받아 ITS 국가교통정보센터의 CCTV HLS 주소를
-        동적으로 가져올 수 있도록 hls 프로퍼티를 재정의한다.
-        """
-        repo: CCTVStreamITSDBRepo=None
+    def find_all(self) -> List[CCTVStream]:
+        cur = self._conn.execute(f"""
+            SELECT id, name, coordx, coordy, avail
+            FROM {self._db_table_name}
+        """)
 
-        @property
-        def hls(self) -> str:
-            return self.repo._fetch_its(self.coord[0], self.coord[1])['cctvurl']
+        return [CCTVStream(
+            id=row[0],
+            name=row[1],
+            coord=(row[2], row[3]),
+            avail=bool(row[4])
+        ) for row in cur.fetchall()]
+
+    def find_by_id(self, id: str) -> CCTVStream:
+        cur = self._conn.execute(f"""
+            SELECT id, name, coordx, coordy, avail
+            FROM {self._db_table_name}
+            WHERE id = ?
+        """, (id,))
         
-        @hls.setter
-        def hls(self, value: str):
-            pass
+        row = cur.fetchone()
+        if row is None:
+            raise Exception(f"'{id}'에 해당하는 CCTV가 존재하지 않습니다.")
+        
+        return CCTVStream(
+            id=row[0],
+            name=row[1],
+            coord=(row[2], row[3]),
+            avail=bool(row[4])
+        )
 
-        def __eq__(self, other):
-            return super().__eq__(other)
+    def get_hls_by_id(self, id: str) -> str:
+        """
+        id에 해당하는 CCTV의 HLS 주소를 가져온다.
+        """
+        cctv = self.find_by_id(id)
+        return self._fetch_its(cctv.coord[0], cctv.coord[1])['cctvurl']
 
     def create(self, name: str, coord: tuple[float, float]) -> CCTVStream:
         """
@@ -143,9 +162,7 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
         그리고 ID를 다른 플랫폼에 의존하는 것은 좋지 않기에,
         UUID를 통해 우리가 직접 ID를 부여하도록 한다.
         """
-
-        return self.CCTVStreamITS(
-            repo=self,
+        return CCTVStream(
             id=str(uuid.uuid4()),
             name=name,
             coord=coord,
@@ -195,37 +212,3 @@ class CCTVStreamITSDBRepo(CCTVStreamRepo):
             raise Exception(f"'{id}'에 해당하는 CCTV가 존재하지 않습니다.")
 
         self._conn.commit()
-
-    def find_all(self) -> List[CCTVStream]:
-        cur = self._conn.execute(f"""
-            SELECT id, name, coordx, coordy, avail
-            FROM {self._db_table_name}
-        """)
-
-        return [self.CCTVStreamITS(
-            repo=self,
-            id=row[0],
-            name=row[1],
-            coord=(row[2], row[3]),
-            avail=bool(row[4])
-        ) for row in cur.fetchall()]
-
-    def find_by_id(self, id: str) -> CCTVStream:
-        cur = self._conn.execute(f"""
-            SELECT id, name, coordx, coordy, avail
-            FROM {self._db_table_name}
-            WHERE id = ?
-        """, (id,))
-        
-        row = cur.fetchone()
-        if row is None:
-            raise Exception(f"'{id}'에 해당하는 CCTV가 존재하지 않습니다.")
-        
-        return self.CCTVStreamITS(
-            repo=self,
-            id=row[0],
-            name=row[1],
-            coord=(row[2], row[3]),
-            avail=bool(row[4])
-        )
-

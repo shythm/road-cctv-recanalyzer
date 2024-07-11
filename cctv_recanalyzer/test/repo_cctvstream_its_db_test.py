@@ -87,7 +87,8 @@ class TestCCTVStreamITSDBRepo(unittest.TestCase):
         self.assertEqual(saved_stream, stream)
 
         # request를 통해 hls 주소를 가져오는지 확인
-        res = requests.get(saved_stream.hls)
+        hls = self.repo.get_hls_by_id(saved_stream.id)
+        res = requests.get(hls)
         self.assertEqual(res.status_code, 200)
 
 if __name__ == "__main__":
