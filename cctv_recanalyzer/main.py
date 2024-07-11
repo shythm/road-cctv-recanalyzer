@@ -1,18 +1,16 @@
-import sys
-sys.path.append('.')
-
 import os
+
 from dotenv import load_dotenv
-from flask import Flask
-import signal
+from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from datetime import datetime
 
+from core.model import CCTVStream, CCTVRecord
 from core.repo import CCTVStreamRepo, CCTVRecordRepo
-
+from core.srv import CCTVRecorder
 from repo.cctvstream_its_db import CCTVStreamITSDBRepo
 from repo.cctvrecord_db import CCTVRecordDBRepo
 from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
-from cctv_recanalyzer.http.cctvstream import CCTVStreamView
-from cctv_recanalyzer.http.cctvrecorder import CCTVRecorderView
 
 load_dotenv()
 def get_env_force(key: str) -> str:
@@ -29,19 +27,41 @@ DEBUG_MODE = os.getenv('PRODUCTION') != 'production'
 
 stream_repo: CCTVStreamRepo = CCTVStreamITSDBRepo(SQLITE3_DB_PATH, ITS_API_KEY)
 record_repo: CCTVRecordRepo = CCTVRecordDBRepo(SQLITE3_DB_PATH)
-cctv_recorder = CCTVRecorderFFmpeg(stream_repo, record_repo, RECORD_OUTPUT_PATH, logging_path='logs')
-cctv_recorder.start()
+cctv_recorder: CCTVRecorder = CCTVRecorderFFmpeg(
+    stream_repo, record_repo, RECORD_OUTPUT_PATH, logging_path='logs')
 
-def signal_handler(sig, frame):
-    cctv_recorder.stop()
-    sys.exit(0)
-signal.signal(signal.SIGINT, signal_handler)
+app = FastAPI()
 
-if __name__ == "__main__":
-    app = Flask(__name__)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    cctv_recorder.start()
+    try:
+        yield
+    finally:
+        cctv_recorder.stop()
 
-    # add endpoints
-    CCTVStreamView(stream_repo).inject(app, '/cctvstream')
-    CCTVRecorderView(cctv_recorder).inject(app, '/record')
+app.router.lifespan_context = lifespan
 
-    app.run(host='0.0.0.0', port=LISTEN_PORT, debug=DEBUG_MODE, use_reloader=False)
+@app.get('/cctv', tags=['CCTV List'], response_model=list[CCTVStream])
+async def get_cctv_list():
+    return stream_repo.find_all()
+
+@app.get('/cctv/{cctv_id}', tags=['CCTV List'], response_model=CCTVStream)
+def get_cctv(cctv_id: str):
+    return stream_repo.find_by_id(cctv_id)
+
+@app.get('/cctv/{cctv_id}/hls', tags=['CCTV List'], response_model=str)
+def get_cctv_hls(cctv_id: str):
+    return stream_repo.get_hls_by_id(cctv_id)
+
+@app.get('/recorder', tags=['CCTV Recorder'], response_model=list[CCTVRecord])
+def get_record_list():
+    return cctv_recorder.get_all()
+
+@app.get('/recorder/submit', tags=['CCTV Recorder'], response_model=CCTVRecord)
+def start_record(cctv_id: str, start_time: datetime, end_time: datetime):
+    return cctv_recorder.submit(cctv_id, start_time, end_time)
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=LISTEN_PORT)
