@@ -9,7 +9,7 @@ import random
 
 import sys
 sys.path.append('..')
-from core.model import CCTVRecord, CCTVRecordState
+from core.model import CCTVRecordBase
 from repo.cctvrecord_db import CCTVRecordDBRepo
 
 class CCTVRecordDBRepoTest(unittest.TestCase):
@@ -26,15 +26,14 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
         newid = str(uuid.uuid4())
         cctvid = str(uuid.uuid4())
 
-        return CCTVRecord(
+        return CCTVRecordBase(
             id=newid,
             cctvid=cctvid,
             reqat=datetime.now(),
             startat=datetime.now(),
             endat=datetime.now() + timedelta(hours=1),
             path=f"/tmp/test{random.randint(0, 100)}.mp4",
-            state=CCTVRecordState.FINISHED,
-            progress=1.0
+            custom="this is custom field"
         )
 
     def test_insert(self):
@@ -52,8 +51,8 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
 
         # 데이터를 삭제하고, 다시 조회했을 때 None이 반환되는지 확인
         self.repo.delete(saved_record.id)
-        saved_record = self.repo.find_by_id(saved_record.id)
-        self.assertIsNone(saved_record)
+        with self.assertRaises(Exception):
+            self.repo.find_by_id(saved_record.id)
 
         # 없는 데이터를 삭제하려고 할 때
         with self.assertRaises(Exception):

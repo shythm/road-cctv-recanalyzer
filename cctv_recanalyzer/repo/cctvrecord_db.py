@@ -1,19 +1,14 @@
-from cctv_recanalyzer.core.repo import CCTVRecordRepo
-from cctv_recanalyzer.core.model import CCTVRecord, CCTVRecordState
+from core.repo import CCTVRecordRepo
+from core.model import CCTVRecordBase, CCTVRecordState
 
 from sqlite3 import connect, threadsafety as sqlite3_threadsafety
-from typing import List
-from datetime import datetime
+from util import str_to_datetime, datetime_to_str
 
 class CCTVRecordDBRepo(CCTVRecordRepo):
 
     DB_TABLE_NAME = "cctvrecord"
 
     def __init__(self, dbpath: str):
-
-        # sqlite3 connection thread-safe checking
-        # see https://docs.python.org/3.11/library/sqlite3.html#sqlite3.threadsafety
-        # multi-threading 환경에서의 connection 관련 내용은 cctvstream_its_db.py 참고
         if sqlite3_threadsafety != 3:
             raise Exception("sqlite3 is not thread-safe (not serialized)")
 
@@ -30,8 +25,7 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
         startat: 녹화 시작 시간
         endat: 녹화 종료 시간
         path: 녹화 파일 경로
-        state: 녹화 상태
-        progress: 녹화 진행률
+        custom: 녹화 서비스에 따른 추가 정보
         """
         self._conn.execute(f"""
             CREATE TABLE IF NOT EXISTS {self.DB_TABLE_NAME} (
@@ -41,89 +35,77 @@ class CCTVRecordDBRepo(CCTVRecordRepo):
                 startat TEXT,
                 endat TEXT,
                 path TEXT,
-                state INTEGER DEFAULT {CCTVRecordState.FINISHED.value},
-                progress REAL DEFAULT 1.0
+                custom TEXT
             )
         """)
         self._conn.commit()
 
-    def _datetime_to_str(self, dt: datetime) -> str:
-        # 국제 표준 포맷인 ISO 8601 형식으로 변환
-        return dt.strftime("%Y-%m-%dT%H:%M:%S")
-    
-    def _str_to_datetime(self, dtstr: str) -> datetime:
-        return datetime.strptime(dtstr, "%Y-%m-%dT%H:%M:%S")
-
-    def find_all(self) -> List[CCTVRecord]:
+    def find_all(self) -> list[CCTVRecordBase]:
         cur = self._conn.execute(f"""
-            SELECT id, cctvid, reqat, startat, endat, path, state, progress
+            SELECT id, cctvid, reqat, startat, endat, path, custom
             FROM {self.DB_TABLE_NAME}                     
         """)
 
-        return [CCTVRecord(
+        return [CCTVRecordBase(
             id=row[0],
             cctvid=row[1],
-            reqat=self._str_to_datetime(row[2]),
-            startat=self._str_to_datetime(row[3]),
-            endat=self._str_to_datetime(row[4]),
+            reqat=str_to_datetime(row[2]),
+            startat=str_to_datetime(row[3]),
+            endat=str_to_datetime(row[4]),
             path=row[5],
-            state=CCTVRecordState(row[6]),
-            progress=row[7]
+            custom=row[6]
         ) for row in cur.fetchall()]
 
-    def find_by_id(self, id: str) -> CCTVRecord:
+    def find_by_id(self, id: str) -> CCTVRecordBase:
         cur = self._conn.execute(f"""
-            SELECT id, cctvid, reqat, startat, endat, path, state, progress
+            SELECT id, cctvid, reqat, startat, endat, path, custom
             FROM {self.DB_TABLE_NAME}
             WHERE id = ?
         """, (id,))
 
         row = cur.fetchone()
         if row is None:
-            return None
+            raise Exception(f"'{id}'에 해당하는 CCTV 녹화 정보가 존재하지 않습니다.")
         
-        return CCTVRecord(
+        return CCTVRecordBase(
             id=row[0],
             cctvid=row[1],
-            reqat=self._str_to_datetime(row[2]),
-            startat=self._str_to_datetime(row[3]),
-            endat=self._str_to_datetime(row[4]),
+            reqat=str_to_datetime(row[2]),
+            startat=str_to_datetime(row[3]),
+            endat=str_to_datetime(row[4]),
             path=row[5],
-            state=CCTVRecordState(row[6]),
-            progress=row[7]
+            custom=row[6]
         )
 
-    def insert(self, record: CCTVRecord) -> CCTVRecord:
+    def insert(self, record: CCTVRecordBase) -> CCTVRecordBase:
         self._conn.execute(f"""
-            INSERT INTO {self.DB_TABLE_NAME} (id, cctvid, reqat, startat, endat, path, state, progress)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO {self.DB_TABLE_NAME} (id, cctvid, reqat, startat, endat, path, custom)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             record.id,
             record.cctvid,
-            self._datetime_to_str(record.reqat),
-            self._datetime_to_str(record.startat),
-            self._datetime_to_str(record.endat),
+            datetime_to_str(record.reqat),
+            datetime_to_str(record.startat),
+            datetime_to_str(record.endat),
             record.path,
-            record.state.value,
-            record.progress
+            record.custom
         ))
 
         self._conn.commit()
         return record
 
-    def update(self, record: CCTVRecord) -> CCTVRecord:
+    def update(self, record: CCTVRecordBase) -> CCTVRecordBase:
         cur = self._conn.execute(f"""
             UPDATE {self.DB_TABLE_NAME}
-            SET cctvid = ?, reqat = ?, startat = ?, endat = ?, path = ?, state = ?, progress = ?
+            SET cctvid = ?, reqat = ?, startat = ?, endat = ?, path = ?, custom = ?
             WHERE id = ?
         """, (
             record.cctvid,
-            self._datetime_to_str(record.reqat),
-            self._datetime_to_str(record.startat),
-            self._datetime_to_str(record.endat),
+            datetime_to_str(record.reqat),
+            datetime_to_str(record.startat),
+            datetime_to_str(record.endat),
             record.path,
-            record.state.value,
-            record.progress,
+            record.custom,
             record.id
         ))
 

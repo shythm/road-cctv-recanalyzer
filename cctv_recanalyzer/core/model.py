@@ -12,6 +12,23 @@ class CCTVStream:
     avail: bool
 
 
+@dataclass
+class CCTVRecordBase:
+    """
+    DB에 저장되는 CCTV 녹화(또는 영상처리) 정보를 담는 데이터 클래스
+    """
+    id: str
+    cctvid: str
+    reqat: datetime
+    startat: datetime
+    endat: datetime
+    path: str
+    custom: str # CCTVRecorder Specific
+
+    def __eq__(self, other) -> bool:
+        return self.id == other.id
+
+
 class CCTVRecordState(Enum):
     """
     CCTV 녹화(또는 영상처리) 상태를 정의하는 열거형
@@ -25,21 +42,11 @@ class CCTVRecordState(Enum):
     FAILED = 40     # 녹화가 실패한 상태
     UNKNOWN = 99    # 알 수 없는 오류로 녹화 상태를 알 수 없을 때
 
-
 @dataclass
-class CCTVRecord:
+class CCTVRecord(CCTVRecordBase):
     """
     CCTV 녹화(또는 영상처리) 정보를 담는 데이터 클래스
     녹화(또는 영상처리)된 CCTV 영상의 위치, 녹화 시작/종료 시간 등을 저장한다.
     """
-    id: str
-    cctvid: str
-    reqat: datetime
-    startat: datetime
-    endat: datetime
-    path: str
     state: CCTVRecordState
     progress: float
-
-    def __eq__(self, other):
-        return self.id == other.id

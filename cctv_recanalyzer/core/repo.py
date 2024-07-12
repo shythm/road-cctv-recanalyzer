@@ -1,4 +1,4 @@
-from cctv_recanalyzer.core.model import CCTVStream, CCTVRecord
+from cctv_recanalyzer.core.model import CCTVStream, CCTVRecordBase
 
 from abc import ABC, abstractmethod
 
@@ -45,37 +45,27 @@ class CCTVStreamRepo(ABC):
         pass
 
 
-# 녹화된 또는 녹화 중인 CCTV 영상 정보를 관리하는 레포지토리
 class CCTVRecordRepo(ABC):
+    """
+    녹화/처리 완료된 CCTV 영상 정보를 관리하는 레포지토리
+    """
     
     @abstractmethod
-    def find_all(self) -> list[CCTVRecord]:
+    def find_all(self) -> list[CCTVRecordBase]:
         pass
 
     @abstractmethod
-    def find_by_id(self, id: str) -> CCTVRecord:
-        """
-        id에 맞는 CCTV 녹화 정보를 찾아 반환한다.
-        """
+    def find_by_id(self, id: str) -> CCTVRecordBase:
         pass
 
     @abstractmethod
-    def insert(self, record: CCTVRecord) -> CCTVRecord:
-        """
-        CCTV 녹화 정보를 추가한다.
-        """
+    def insert(self, record: CCTVRecordBase) -> CCTVRecordBase:
         pass
 
     @abstractmethod
-    def update(self, record: CCTVRecord) -> CCTVRecord:
-        """
-        id 정보를 이용해 CCTV 녹화 정보를 수정한다.
-        """
+    def update(self, record: CCTVRecordBase) -> CCTVRecordBase:
         pass
 
     @abstractmethod
     def delete(self, id: str):
-        """
-        id 정보를 이용해 CCTV 녹화 정보를 삭제한다.
-        """
         pass
