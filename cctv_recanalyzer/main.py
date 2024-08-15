@@ -1,67 +1,89 @@
 import os
 
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
+from util import get_env_force
+from fastapi import FastAPI, HTTPException, Request, responses
 from datetime import datetime
 
-from core.model import CCTVStream, CCTVRecord
-from core.repo import CCTVStreamRepo, CCTVRecordRepo
-from core.srv import CCTVRecorder
-from repo.cctvstream_its_db import CCTVStreamITSDBRepo
-from repo.cctvrecord_db import CCTVRecordDBRepo
-from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
+from core.model import CCTVStream, TaskItem, EntityNotFound
+from core.repo import CCTVStreamRepository, TaskOutputRepository
+from core.srv import TaskService
 
-load_dotenv()
-def get_env_force(key: str) -> str:
-    value = os.getenv(key)
-    if value is None:
-        raise ValueError(f'{key} is not set')
-    return value
+from repo.cctv_stream_its import CCTVStreamITSRepo
+from repo.task_output_file import TaskOutputFileRepo
+from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
 
-SQLITE3_DB_PATH = get_env_force('SQLITE3_DB_PATH')
+JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
 ITS_API_KEY = get_env_force('ITS_API_KEY')
-RECORD_OUTPUT_PATH = get_env_force('RECORD_OUTPUT_PATH')
-LISTEN_PORT = int(os.getenv('LISTEN_PORT', 8080))
-DEBUG_MODE = os.getenv('PRODUCTION') != 'production'
+TASK_OUTPUT_PATH = get_env_force('TASK_OUTPUT_PATH')
+LISTEN_PORT = int(os.getenv('LISTEN_PORT', '8080'))
 
-stream_repo: CCTVStreamRepo = CCTVStreamITSDBRepo(SQLITE3_DB_PATH, ITS_API_KEY)
-record_repo: CCTVRecordRepo = CCTVRecordDBRepo(SQLITE3_DB_PATH)
-cctv_recorder: CCTVRecorder = CCTVRecorderFFmpeg(
-    stream_repo, record_repo, RECORD_OUTPUT_PATH, logging_path='logs')
+cctv_stream_repo: CCTVStreamRepository = CCTVStreamITSRepo(
+    os.path.join(JSON_DB_STORAGE, 'cctv_stream.json'), ITS_API_KEY)
+task_output_repo: TaskOutputRepository = TaskOutputFileRepo(
+    os.path.join(JSON_DB_STORAGE, 'task_output.json')
+)
+
+cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
+    os.path.join(JSON_DB_STORAGE, 'tasks.json'), TASK_OUTPUT_PATH, cctv_stream_repo, task_output_repo
+)
 
 app = FastAPI()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    cctv_recorder.start()
-    try:
-        yield
-    finally:
-        cctv_recorder.stop()
+######################
+# Exception Handlers #
+######################
 
-app.router.lifespan_context = lifespan
+@app.exception_handler(EntityNotFound)
+def app_entity_not_found_handler(request: Request, exc: EntityNotFound):
+    return responses.JSONResponse(
+        status_code=404,
+        content={'message': str(exc)}
+    )
 
-@app.get('/cctv', tags=['CCTV List'], response_model=list[CCTVStream])
-async def get_cctv_list():
-    return stream_repo.find_all()
+@app.exception_handler(ValueError)
+def app_value_error_handler(request: Request, exc: ValueError):
+    return responses.JSONResponse(
+        status_code=400,
+        content={'message': str(exc)}
+    )
 
-@app.get('/cctv/{cctv_id}', tags=['CCTV List'], response_model=CCTVStream)
-def get_cctv(cctv_id: str):
-    return stream_repo.find_by_id(cctv_id)
+@app.exception_handler(Exception)
+def app_exception_handler(request: Request, exc: Exception):
+    return responses.JSONResponse(
+        status_code=500,
+        content={'message': str(exc)}
+    )
 
-@app.get('/cctv/{cctv_id}/hls', tags=['CCTV List'], response_model=str)
-def get_cctv_hls(cctv_id: str):
-    return stream_repo.get_hls_by_id(cctv_id)
 
-@app.get('/recorder', tags=['CCTV Recorder'], response_model=list[CCTVRecord])
-def get_record_list():
-    return cctv_recorder.get_all()
+#################
+# API Endpoints #
+#################
 
-@app.get('/recorder/submit', tags=['CCTV Recorder'], response_model=CCTVRecord)
-def start_record(cctv_id: str, start_time: datetime, end_time: datetime):
-    return cctv_recorder.submit(cctv_id, start_time, end_time)
+@app.get("/cctv/stream", tags=["cctv stream"])
+def read_cctv_stream_list() -> list[CCTVStream]:
+    return cctv_stream_repo.get_all()
 
-if __name__ == '__main__':
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=LISTEN_PORT)
+@app.post("/cctv/stream", tags=["cctv stream"])
+def create_cctv_stream(cctvname: str, coordx: float, coordy: float) -> CCTVStream:
+    return cctv_stream_repo.save(cctvname, (coordx, coordy))
+
+@app.delete("/cctv/stream/{cctvname}", tags=["cctv stream"])
+def delete_cctv_stream(cctvname: str) -> CCTVStream:
+    return cctv_stream_repo.delete(cctvname)
+
+@app.get("/task/record", tags=["cctv record"])
+def read_cctv_record_list() -> list[TaskItem]:
+    return cctv_record_srv.get_tasks()
+
+@app.post("/task/record/start", tags=["cctv record"])
+def start_cctv_record(cctv: str, startat: datetime, endat: datetime) -> TaskItem:
+    return cctv_record_srv.start(cctv=cctv, startat=startat, endat=endat)
+    
+@app.patch("/cctvrecord/stop/{taskid}", tags=["cctv record"])
+def stop_cctv_record(taskid: str) -> TaskItem:
+    return cctv_record_srv.stop(taskid)
+
+# TODO: Error: Input should be a dictionary or an instance of TaskItem
+@app.get("/output/{taskid}", tags=["task output"])
+def read_task_output(taskid: str) -> list[TaskItem]:
+    return task_output_repo.get(taskid)

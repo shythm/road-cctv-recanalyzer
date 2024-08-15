@@ -1,6 +1,4 @@
 __pycache__/
-output/
-logs/
-api.key
 .devcontainer/sqlite3.db
 .env
+.development/

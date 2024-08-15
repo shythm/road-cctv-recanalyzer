@@ -1,71 +1,40 @@
-from cctv_recanalyzer.core.model import CCTVStream, CCTVRecordBase
-
 from abc import ABC, abstractmethod
+from core.model import TaskOutput, CCTVStream
 
-# CCTV 스트리밍 정보를 관리하는 레포지토리
-class CCTVStreamRepo(ABC):
-
+class TaskOutputRepository(ABC):
     @abstractmethod
-    def find_all(self) -> list[CCTVStream]:
+    def save(self, output: TaskOutput):
         pass
 
     @abstractmethod
-    def find_by_id(self, id: str) -> CCTVStream:
-        """
-        id에 맞는 CCTV 스트리밍 정보를 찾아 반환한다.
-        """
+    def get(self, taskid: str) -> list[TaskOutput]:
         pass
 
     @abstractmethod
-    def get_hls_by_id(self, id: str) -> str:
-        """
-        id에 맞는 CCTV 스트리밍 정보의 HLS 주소를 반환한다.
-        """
+    def get_all(self) -> list[TaskOutput]:
         pass
 
     @abstractmethod
-    def insert(self, cctv: CCTVStream) -> CCTVStream:
-        """
-        CCTV 스트리밍 정보를 추가한다.
-        """
+    def delete(self, taskid: str):
+        pass
+
+class CCTVStreamRepository(ABC):
+    @abstractmethod
+    def save(self, name: str, coord: tuple[float, float]) -> CCTVStream:
         pass
 
     @abstractmethod
-    def update(self, cctv: CCTVStream) -> CCTVStream:
-        """
-        id 정보를 이용해 CCTV 스트리밍 정보를 수정한다.
-        """
+    def delete(self, name: str) -> CCTVStream:
         pass
 
     @abstractmethod
-    def delete(self, id: str):
-        """
-        id 정보를 이용해 CCTV 스트리밍 정보를 삭제한다.
-        """
-        pass
-
-
-class CCTVRecordRepo(ABC):
-    """
-    녹화/처리 완료된 CCTV 영상 정보를 관리하는 레포지토리
-    """
-    
-    @abstractmethod
-    def find_all(self) -> list[CCTVRecordBase]:
+    def get_by_name(self, name: str) -> CCTVStream:
         pass
 
     @abstractmethod
-    def find_by_id(self, id: str) -> CCTVRecordBase:
+    def get_all(self) -> list[CCTVStream]:
         pass
 
     @abstractmethod
-    def insert(self, record: CCTVRecordBase) -> CCTVRecordBase:
-        pass
-
-    @abstractmethod
-    def update(self, record: CCTVRecordBase) -> CCTVRecordBase:
-        pass
-
-    @abstractmethod
-    def delete(self, id: str):
+    def get_hls(self, cctvstream: CCTVStream) -> str:
         pass
