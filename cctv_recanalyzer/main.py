@@ -4,7 +4,7 @@ from util import get_env_force
 from fastapi import FastAPI, HTTPException, Request, responses
 from datetime import datetime
 
-from core.model import CCTVStream, TaskItem, EntityNotFound
+from core.model import CCTVStream, TaskItem, TaskOutput, EntityNotFound
 from core.repo import CCTVStreamRepository, TaskOutputRepository
 from core.srv import TaskService
 
@@ -71,19 +71,30 @@ def create_cctv_stream(cctvname: str, coordx: float, coordy: float) -> CCTVStrea
 def delete_cctv_stream(cctvname: str) -> CCTVStream:
     return cctv_stream_repo.delete(cctvname)
 
-@app.get("/task/record", tags=["cctv record"])
+@app.get("/task/record", tags=["cctv record task"])
 def read_cctv_record_list() -> list[TaskItem]:
     return cctv_record_srv.get_tasks()
 
-@app.post("/task/record/start", tags=["cctv record"])
+@app.get("/task/record/start", tags=["cctv record task"])
 def start_cctv_record(cctv: str, startat: datetime, endat: datetime) -> TaskItem:
     return cctv_record_srv.start(cctv=cctv, startat=startat, endat=endat)
     
-@app.patch("/cctvrecord/stop/{taskid}", tags=["cctv record"])
-def stop_cctv_record(taskid: str) -> TaskItem:
+@app.get("/task/record/stop/{taskid}", tags=["cctv record task"])
+def stop_cctv_record(taskid: str):
     return cctv_record_srv.stop(taskid)
 
-# TODO: Error: Input should be a dictionary or an instance of TaskItem
+@app.delete("/task/record/{taskid}", tags=["cctv record task"])
+def delete_cctv_record(taskid: str):
+    return cctv_record_srv.del_task(taskid)
+
+@app.get("/output", tags=["task output"])
+def read_task_output_list() -> list[TaskOutput]:
+    return task_output_repo.get_all()
+
 @app.get("/output/{taskid}", tags=["task output"])
-def read_task_output(taskid: str) -> list[TaskItem]:
+def read_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.get(taskid)
+
+@app.delete("/output/{taskid}", tags=["task output"])
+def delete_task_output(taskid: str) -> list[TaskOutput]:
+    return task_output_repo.delete(taskid)

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from dataclasses_json import DataClassJsonMixin
 from datetime import datetime
 from enum import Enum
 
@@ -25,7 +24,7 @@ class TaskParamMeta:
     optional: bool = True
 
 @dataclass
-class TaskItem(DataClassJsonMixin):
+class TaskItem:
     id: str
     name: str
     params: dict[str, str]
@@ -34,7 +33,7 @@ class TaskItem(DataClassJsonMixin):
     progress: float
 
 @dataclass
-class TaskOutput(DataClassJsonMixin):
+class TaskOutput:
     taskid: str
     name: str
     type: str
@@ -42,7 +41,7 @@ class TaskOutput(DataClassJsonMixin):
     createdat: datetime
 
 @dataclass
-class CCTVStream(DataClassJsonMixin):
+class CCTVStream:
     name: str
     coordx: float
     coordy: float

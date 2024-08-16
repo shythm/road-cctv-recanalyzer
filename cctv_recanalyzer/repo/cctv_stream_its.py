@@ -7,27 +7,38 @@ from core.repo import CCTVStreamRepository
 
 class CCTVStreamITSRepo(CCTVStreamRepository):
     _lock = threading.Lock()
+    _data: list[CCTVStream] = []
     _delta_coord = 0.01
     _dist_epsilon = 1e-6
 
     def __init__(self, json_path: str, api_key: str):
         self._json_path = json_path
         self._api_key = api_key
-        self._data: list[CCTVStream] = []
         self._load_data()
 
     def _load_data(self):
+        # deserialize from json file
         try:
             with open(self._json_path, "r") as f:
-                json_data = f.read()
-                self._data = CCTVStream.schema().loads(json_data, many=True)
+                data = json.load(f)
+                self._data = [CCTVStream(
+                    name=stream['name'],
+                    coordx=stream['coordx'],
+                    coordy=stream['coordy']
+                ) for stream in data]
         except FileNotFoundError:
             pass
 
     def _save_data(self):
-        data = CCTVStream.schema().dumps(self._data, many=True)
+        # serialize to json file
+        data = [{
+            'name': stream.name,
+            'coordx': stream.coordx,
+            'coordy': stream.coordy
+        } for stream in self._data]
+
         with open(self._json_path, "w") as f:
-            json.dump(json.loads(data), f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def save(self, name: str, coord: tuple[float, float]) -> CCTVStream:
         """

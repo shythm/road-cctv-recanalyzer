@@ -15,6 +15,8 @@ from core.model import TaskItem, TaskState, TaskParamMeta, TaskOutput, TaskCance
 
 class CCTVRecordFFmpegTaskSrv(TaskService):
     _lock = threading.Lock()
+    _tasks: list[TaskItem] = []
+    _cancel_req: dict[str, bool] = {}
 
     def __init__(
             self, tasks_json_path: str, outputs_path: str, 
@@ -24,18 +26,22 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
         self._outputs_path = outputs_path
         self._cctv_stream_repo = cctv_stream_repo
         self._output_repo = output_repo
-        self._logger = get_logger(__name__)
-
-        self._tasks: list[TaskItem] = []
-        self._cancel_req: dict[str, bool] = {}
 
         self._init_tasks()
 
     def _init_tasks(self):
         try:
+            # deserialize from json file
             with open(self._tasks_json_path, "r") as f:
-                json_data = f.read()
-                self._tasks = TaskItem.schema().loads(json_data, many=True)
+                data = json.load(f)
+                self._tasks = [TaskItem(
+                    id=task['id'],
+                    name=task['name'],
+                    params=task['params'],
+                    state=TaskState(task['state']),
+                    reason=task['reason'],
+                    progress=task['progress']
+                ) for task in data]
 
             for task in self._tasks:
                 # fix invalid state
@@ -48,9 +54,18 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
             pass
 
     def _save_tasks(self):
-        data = TaskItem.schema().dumps(self._tasks, many=True)
+        # serialize to json file
+        data = [{
+            'id': task.id,
+            'name': task.name,
+            'params': task.params,
+            'state': task.state.value,
+            'reason': task.reason,
+            'progress': task.progress
+        } for task in self._tasks]
+
         with open(self._tasks_json_path, "w") as f:
-            json.dump(json.loads(data), f, ensure_ascii=False, indent=2)
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _add_task_state(self, task: TaskItem):
         with self._lock:
@@ -84,7 +99,14 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
             return [TaskItem(**dataclasses.asdict(task)) for task in self._tasks]
         
     def del_task(self, id: str):
-        pass
+        with self._lock:
+            for task in self._tasks:
+                if task.id == id:
+                    self._tasks.remove(task)
+                    self._save_tasks()
+                    break
+            else:
+                raise EntityNotFound(f"녹화 작업이 존재하지 않습니다.")
 
     def start(self, **kwargs) -> TaskItem:
         cctv = self._cctv_stream_repo.get_by_name(kwargs['cctv'])
