@@ -21,7 +21,7 @@ class TaskParamMeta:
     name: str
     desc: str
     accept: list[str] # 허용되는 ResultItem.type 값 또는 Primitive Type
-    optional: bool = True
+    optional: bool = False
 
 @dataclass
 class TaskItem:
