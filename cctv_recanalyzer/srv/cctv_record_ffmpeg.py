@@ -57,6 +57,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
             progress=0.0
         )
         self._task_repo.add(task)
+        self._cancel_req[task.id] = False
 
         def task_func():
             try:
@@ -145,9 +146,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
         return task
 
     def stop(self, id: str):
-        with self._lock:
-            req = self._cancel_req.get(id)
-            if req is None:
-                raise EntityNotFound(f"녹화 작업이 존재하지 않습니다. id={id}")
-            self._cancel_req[id] = True
-
+        req = self._cancel_req.get(id)
+        if req is None:
+            raise EntityNotFound(f"녹화 작업이 존재하지 않습니다. id={id}")
+        self._cancel_req[id] = True
