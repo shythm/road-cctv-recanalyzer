@@ -101,7 +101,7 @@ def read_task_output_list() -> list[TaskOutput]:
 
 @app.get("/output/{taskid}", tags=["task output"])
 def read_task_output(taskid: str) -> list[TaskOutput]:
-    return task_output_repo.get(taskid)
+    return task_output_repo.get_by_taskid(taskid)
 
 @app.delete("/output/{taskid}", tags=["task output"])
 def delete_task_output(taskid: str) -> list[TaskOutput]:

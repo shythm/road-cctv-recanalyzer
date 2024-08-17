@@ -28,7 +28,11 @@ class TaskOutputRepository(ABC):
         pass
 
     @abstractmethod
-    def get(self, taskid: str) -> list[TaskOutput]:
+    def get_by_taskid(self, taskid: str) -> list[TaskOutput]:
+        pass
+
+    @abstractmethod
+    def get_by_name(self, name: str) -> TaskOutput:
         pass
 
     @abstractmethod

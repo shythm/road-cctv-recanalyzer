@@ -48,13 +48,16 @@ class TaskOutputFileRepo(TaskOutputRepository):
             self._outputs.append(output)
             self._save_data()
 
-    def get(self, taskid: str) -> list[TaskOutput]:
+    def get_by_taskid(self, taskid: str) -> list[TaskOutput]:
         with self._lock:
-            ret = []
+            return [output for output in self._outputs if output.taskid == taskid]
+        
+    def get_by_name(self, name: str) -> TaskOutput:
+        with self._lock:
             for output in self._outputs:
-                if output.taskid == taskid:
-                    ret.append(output)
-            return ret
+                if output.name == name:
+                    return output
+            raise ValueError(f"TaskOutput not found: {name}")
 
     def get_all(self) -> list[TaskOutput]:
         with self._lock:
