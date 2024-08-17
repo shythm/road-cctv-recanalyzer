@@ -1,4 +1,2 @@
-__pycache__/
-.devcontainer/sqlite3.db
-.env
 .development/
+.devcontainer/sqlite3.db
