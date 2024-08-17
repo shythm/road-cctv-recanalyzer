@@ -45,6 +45,7 @@ cctv_tracking_srv: TaskService = YOLOv8DeepSORTTackingTaskSrv(
     output_repo=task_output_repo,
 )
 
+
 def create_task_router(task_service: TaskService) -> APIRouter:
     def read_task_list() -> list[TaskItem]:
         return task_service.get_tasks()
@@ -57,10 +58,10 @@ def create_task_router(task_service: TaskService) -> APIRouter:
         )
     StartQueryModel: Type[BaseModel] = create_model('StartTaskParams', **start_query_params)
 
-    def start_task(params: StartQueryModel=Depends()) -> TaskItem: # type: ignore
+    def start_task(params: StartQueryModel = Depends()) -> TaskItem:  # type: ignore
         # remove None values
         params = params.dict()
-        params = { k: v for k, v in params.items() if v is not None }
+        params = {k: v for k, v in params.items() if v is not None}
         return task_service.start(params=params)
 
     def stop_task(taskid: str):
@@ -79,11 +80,13 @@ def create_task_router(task_service: TaskService) -> APIRouter:
 
     return router
 
+
 app = FastAPI()
 
 ######################
 # Exception Handlers #
 ######################
+
 
 @app.exception_handler(EntityNotFound)
 def app_entity_not_found_handler(request: Request, exc: EntityNotFound):
@@ -92,12 +95,14 @@ def app_entity_not_found_handler(request: Request, exc: EntityNotFound):
         content={'message': str(exc)}
     )
 
+
 @app.exception_handler(ValueError)
 def app_value_error_handler(request: Request, exc: ValueError):
     return responses.JSONResponse(
         status_code=400,
         content={'message': str(exc)}
     )
+
 
 @app.exception_handler(Exception)
 def app_exception_handler(request: Request, exc: Exception):
@@ -115,24 +120,30 @@ def app_exception_handler(request: Request, exc: Exception):
 def read_cctv_stream_list() -> list[CCTVStream]:
     return cctv_stream_repo.get_all()
 
+
 @app.post("/cctv/stream", tags=["cctv stream"])
 def create_cctv_stream(cctvname: str, coordx: float, coordy: float) -> CCTVStream:
     return cctv_stream_repo.save(cctvname, (coordx, coordy))
+
 
 @app.delete("/cctv/stream/{cctvname}", tags=["cctv stream"])
 def delete_cctv_stream(cctvname: str) -> CCTVStream:
     return cctv_stream_repo.delete(cctvname)
 
+
 app.include_router(create_task_router(cctv_record_srv), prefix="/task/record")
 app.include_router(create_task_router(cctv_tracking_srv), prefix="/task/tracking")
+
 
 @app.get("/output", tags=["task output"])
 def read_task_output_list() -> list[TaskOutput]:
     return task_output_repo.get_all()
 
+
 @app.get("/output/{taskid}", tags=["task output"])
 def read_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.get_by_taskid(taskid)
+
 
 @app.delete("/output/{taskid}", tags=["task output"])
 def delete_task_output(taskid: str) -> list[TaskOutput]:

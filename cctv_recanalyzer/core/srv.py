@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from core.model import TaskItem, TaskParamMeta
 
+
 class TaskService(ABC):
     @abstractmethod
     def get_name(self) -> str:

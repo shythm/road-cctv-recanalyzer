@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
+
 class TaskState(Enum):
     UNDEFINED = -1
     PENDING = 0
@@ -10,18 +11,22 @@ class TaskState(Enum):
     FINISHED = 3
     FAILED = 4
 
+
 class EntityNotFound(Exception):
     pass
 
+
 class TaskCancelException(Exception):
     pass
+
 
 @dataclass
 class TaskParamMeta:
     name: str
     desc: str
-    accept: list[str] # 허용되는 ResultItem.type 값 또는 Primitive Type
+    accept: list[str]  # 허용되는 ResultItem.type 값 또는 Primitive Type
     optional: bool = False
+
 
 @dataclass
 class TaskItem:
@@ -33,14 +38,16 @@ class TaskItem:
     progress: float
     createdat: datetime = datetime.now()
 
+
 @dataclass
 class TaskOutput:
-    name: str # filename [identifier]
+    name: str  # filename [identifier]
     type: str
     desc: str
     taskid: str
-    metadata: dict[str, str] # custom field
+    metadata: dict[str, str]  # custom field
     createdat: datetime = datetime.now()
+
 
 @dataclass
 class CCTVStream:

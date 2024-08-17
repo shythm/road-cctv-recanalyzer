@@ -5,6 +5,7 @@ import threading
 from core.model import CCTVStream, EntityNotFound
 from core.repo import CCTVStreamRepository
 
+
 class CCTVStreamITSRepo(CCTVStreamRepository):
     _lock = threading.Lock()
     _data: list[CCTVStream] = []
@@ -76,7 +77,7 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         """
         CCTV 스트리밍 정보 목록을 반환한다.
         """
-        return [stream for stream in self._data] # shallow copy
+        return [stream for stream in self._data]  # shallow copy
 
     def get_hls(self, cctvstream: CCTVStream) -> str:
         """
@@ -111,7 +112,7 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         cctvname    string  CCTV 설치 장소명
         """
         data = res.json()['response']['data']
-        
+
         # [2024/06/12] data가 배열이 아닐 경우도 있다.
         if not isinstance(data, list):
             data = [data]

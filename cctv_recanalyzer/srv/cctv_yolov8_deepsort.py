@@ -13,6 +13,7 @@ from core.srv import TaskService
 from core.model import TaskItem, TaskParamMeta, TaskState, TaskOutput, TaskCancelException, EntityNotFound
 from core.repo import TaskItemRepository, TaskOutputRepository
 
+
 @dataclass
 class Detection:
     frame: int
@@ -20,6 +21,7 @@ class Detection:
     clsid: int
     x: int
     y: int
+
 
 class YOLOv8DeepSORTTackingTaskSrv(TaskService):
     _confidence_threshold_default = 0.6
@@ -38,7 +40,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
     def get_name(self) -> str:
         return "CCTV 객체 추적 (YOLOv8 + DeepSORT)"
-    
+
     def get_params(self) -> list[dict]:
         return [
             TaskParamMeta(
@@ -49,10 +51,10 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
     def get_tasks(self) -> list[TaskItem]:
         return self._task_repo.get_by_name(self.get_name())
-    
+
     def del_task(self, id: str):
         self._task_repo.delete(id)
-    
+
     def start(self, params: dict[str, str]) -> TaskItem:
         video_path = params["targetname"]
         confidence = float(params.get("confidence", self._confidence_threshold_default))
@@ -113,7 +115,8 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                         raise TaskCancelException("객체 추적이 요청에 의해 중단되었습니다.")
 
                     # https://docs.ultralytics.com/modes/predict/
-                    detection = self._model.predict(source=[frame], conf=confidence, verbose=False)[0]
+                    detection = self._model.predict(
+                        source=[frame], conf=confidence, verbose=False)[0]
 
                     # for update deepsort tracker
                     raw_detections: list[tuple[list[float | int], float, str]] = []
@@ -127,7 +130,8 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                         detection_class = int(data[5])
 
                         # [left, top, width, height], confidence, detection_class
-                        raw_detections.append(([xmin, ymin, width, height], confidence, detection_class))
+                        raw_detections.append(([xmin, ymin, width, height],
+                                              confidence, detection_class))
 
                     tracks: list[Track] = self._tracker.update_tracks(raw_detections, frame=frame)
                     for track in tracks:
@@ -147,7 +151,8 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                         cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), green, 2)
                         cv2.rectangle(frame, (xmin, ymin - 20), (xmin + 20, ymin), green, -1)
                         cv2.circle(frame, (x, y), radius=2, color=green, thickness=-1)
-                        cv2.putText(frame, str(track_id) + "/" + str(class_id), (xmin + 5, ymin - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, white, 2)
+                        cv2.putText(frame, str(track_id) + "/" + str(class_id),
+                                    (xmin + 5, ymin - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.5, white, 2)
 
                         # save detection
                         results.append(Detection(

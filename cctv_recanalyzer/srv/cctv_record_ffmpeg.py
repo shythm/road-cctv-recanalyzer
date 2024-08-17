@@ -10,6 +10,7 @@ from core.srv import TaskService
 from core.repo import TaskItemRepository, TaskOutputRepository, CCTVStreamRepository
 from core.model import TaskItem, TaskState, TaskParamMeta, TaskOutput, TaskCancelException, EntityNotFound
 
+
 class CCTVRecordFFmpegTaskSrv(TaskService):
     _cancel_req: dict[str, bool] = {}
 
@@ -24,17 +25,17 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
 
     def get_name(self) -> str:
         return "CCTV 녹화"
-    
+
     def get_params(self) -> list[TaskParamMeta]:
         return [
             TaskParamMeta("cctv", "CCTV 이름", ["str"]),
             TaskParamMeta("startat", "녹화 시작 시간", ["datetime"]),
             TaskParamMeta("endat", "녹화 종료 시간", ["datetime"]),
         ]
-    
+
     def get_tasks(self) -> list[TaskItem]:
         return self._task_repo.get_by_name(self.get_name())
-        
+
     def del_task(self, id: str):
         self._task_repo.delete(id)
 
@@ -132,7 +133,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                     if os.path.exists(output_path):
                         os.remove(output_path)
                     raise Exception(f"녹화 중 오류가 발생하였습니다.")
-                
+
                 task.progress = 1.0
                 self._task_repo.update(task.id, TaskState.FINISHED, "녹화가 완료되었습니다.")
 

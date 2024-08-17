@@ -5,6 +5,7 @@ from datetime import datetime
 from core.model import TaskItem, TaskState, EntityNotFound
 from core.repo import TaskItemRepository
 
+
 class TaskItemJsonRepo(TaskItemRepository):
     _lock = threading.Lock()
     _tasks: list[TaskItem] = []
@@ -58,14 +59,14 @@ class TaskItemJsonRepo(TaskItemRepository):
             self._tasks.append(task)
             self._save_tasks()
             return task
-        
+
     def get(self, id: str) -> TaskItem:
         with self._lock:
             for task in self._tasks:
                 if task.id == id:
                     return task
             raise EntityNotFound("작업을 찾을 수 없습니다.")
-        
+
     def get_by_name(self, name: str) -> list[TaskItem]:
         with self._lock:
             return [task for task in self._tasks if task.name == name]
@@ -79,7 +80,7 @@ class TaskItemJsonRepo(TaskItemRepository):
                     self._save_tasks()
                     return task
             raise EntityNotFound("작업을 찾을 수 없습니다.")
-        
+
     def delete(self, id: str):
         with self._lock:
             self._tasks = [task for task in self._tasks if task.id != id]

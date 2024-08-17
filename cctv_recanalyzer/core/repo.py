@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from core.model import TaskItem, TaskOutput, TaskState, CCTVStream
 
+
 class TaskItemRepository(ABC):
     @abstractmethod
     def add(self, task: TaskItem):
@@ -22,6 +23,7 @@ class TaskItemRepository(ABC):
     def delete(self, id: str):
         pass
 
+
 class TaskOutputRepository(ABC):
     @abstractmethod
     def save(self, output: TaskOutput):
@@ -42,6 +44,7 @@ class TaskOutputRepository(ABC):
     @abstractmethod
     def delete(self, taskid: str):
         pass
+
 
 class CCTVStreamRepository(ABC):
     @abstractmethod

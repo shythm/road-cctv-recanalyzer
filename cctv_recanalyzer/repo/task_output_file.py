@@ -5,6 +5,7 @@ from datetime import datetime
 from core.model import TaskOutput
 from core.repo import TaskOutputRepository
 
+
 class TaskOutputFileRepo(TaskOutputRepository):
     _lock = threading.Lock()
 
@@ -51,7 +52,7 @@ class TaskOutputFileRepo(TaskOutputRepository):
     def get_by_taskid(self, taskid: str) -> list[TaskOutput]:
         with self._lock:
             return [output for output in self._outputs if output.taskid == taskid]
-        
+
     def get_by_name(self, name: str) -> TaskOutput:
         with self._lock:
             for output in self._outputs:
