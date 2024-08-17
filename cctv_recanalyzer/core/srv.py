@@ -19,7 +19,7 @@ class TaskService(ABC):
         pass
 
     @abstractmethod
-    def start(self, **kwargs) -> TaskItem:
+    def start(self, params: dict[str, str]) -> TaskItem:
         pass
 
     @abstractmethod

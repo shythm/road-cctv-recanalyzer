@@ -38,10 +38,10 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
     def del_task(self, id: str):
         self._task_repo.delete(id)
 
-    def start(self, **kwargs) -> TaskItem:
-        cctv = self._cctv_stream_repo.get_by_name(kwargs['cctv'])
-        startat: datetime = kwargs['startat']
-        endat: datetime = kwargs['endat']
+    def start(self, params: dict[str, str]) -> TaskItem:
+        cctv = self._cctv_stream_repo.get_by_name(params['cctv'])
+        startat = datetime.fromisoformat(params['startat'])
+        endat = datetime.fromisoformat(params['endat'])
         params = {
             "cctv": cctv.name,
             "startat": startat.isoformat(),
