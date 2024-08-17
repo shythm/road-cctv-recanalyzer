@@ -31,14 +31,16 @@ class TaskItem:
     state: TaskState | int
     reason: str
     progress: float
+    createdat: datetime = datetime.now()
 
 @dataclass
 class TaskOutput:
-    taskid: str
-    name: str
+    name: str # filename [identifier]
     type: str
     desc: str
-    createdat: datetime
+    taskid: str
+    metadata: dict[str, str] # custom field
+    createdat: datetime = datetime.now()
 
 @dataclass
 class CCTVStream:

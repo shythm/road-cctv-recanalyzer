@@ -1,5 +1,26 @@
 from abc import ABC, abstractmethod
-from core.model import TaskOutput, CCTVStream
+from core.model import TaskItem, TaskOutput, TaskState, CCTVStream
+
+class TaskItemRepository(ABC):
+    @abstractmethod
+    def add(self, task: TaskItem):
+        pass
+
+    @abstractmethod
+    def get(self, id: str) -> TaskItem:
+        pass
+
+    @abstractmethod
+    def get_by_name(self, name: str) -> list[TaskItem]:
+        pass
+
+    @abstractmethod
+    def update(self, id: str, state: TaskState, reason: str) -> TaskItem:
+        pass
+
+    @abstractmethod
+    def delete(self, id: str):
+        pass
 
 class TaskOutputRepository(ABC):
     @abstractmethod

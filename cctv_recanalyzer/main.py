@@ -5,11 +5,12 @@ from fastapi import FastAPI, HTTPException, Request, responses
 from datetime import datetime
 
 from core.model import CCTVStream, TaskItem, TaskOutput, EntityNotFound
-from core.repo import CCTVStreamRepository, TaskOutputRepository
+from core.repo import CCTVStreamRepository, TaskItemRepository, TaskOutputRepository
 from core.srv import TaskService
 
 from repo.cctv_stream_its import CCTVStreamITSRepo
 from repo.task_output_file import TaskOutputFileRepo
+from repo.task_item_file import TaskItemJsonRepo
 from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
 
 JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
@@ -19,12 +20,19 @@ LISTEN_PORT = int(os.getenv('LISTEN_PORT', '8080'))
 
 cctv_stream_repo: CCTVStreamRepository = CCTVStreamITSRepo(
     os.path.join(JSON_DB_STORAGE, 'cctv_stream.json'), ITS_API_KEY)
+task_item_repo: TaskItemRepository = TaskItemJsonRepo(
+    os.path.join(JSON_DB_STORAGE, 'tasks.json'),
+    fix_invalid_state=True
+)
 task_output_repo: TaskOutputRepository = TaskOutputFileRepo(
     os.path.join(JSON_DB_STORAGE, 'task_output.json')
 )
 
 cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
-    os.path.join(JSON_DB_STORAGE, 'tasks.json'), TASK_OUTPUT_PATH, cctv_stream_repo, task_output_repo
+    task_repo=task_item_repo,
+    cctv_stream_repo=cctv_stream_repo,
+    outputs_path=TASK_OUTPUT_PATH,
+    output_repo=task_output_repo,
 )
 
 app = FastAPI()

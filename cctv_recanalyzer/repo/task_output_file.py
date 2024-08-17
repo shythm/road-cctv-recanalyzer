@@ -23,7 +23,8 @@ class TaskOutputFileRepo(TaskOutputRepository):
                     name=output['name'],
                     type=output['type'],
                     desc=output['desc'],
-                    createdat=datetime.fromisoformat(output['createdat'])
+                    createdat=datetime.fromisoformat(output['createdat']),
+                    metadata=output.get('metadata', {})
                 ) for output in data]
         except FileNotFoundError:
             pass
@@ -35,7 +36,8 @@ class TaskOutputFileRepo(TaskOutputRepository):
             'name': output.name,
             'type': output.type,
             'desc': output.desc,
-            'createdat': output.createdat.isoformat()
+            'createdat': output.createdat.isoformat(),
+            'metadata': output.metadata,
         } for output in self._outputs]
 
         with open(self._json_path, "w") as f:
