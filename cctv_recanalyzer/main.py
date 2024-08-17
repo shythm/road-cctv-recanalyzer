@@ -20,6 +20,8 @@ ITS_API_KEY = get_env_force('ITS_API_KEY')
 TASK_OUTPUT_PATH = get_env_force('TASK_OUTPUT_PATH')
 LISTEN_PORT = int(os.getenv('LISTEN_PORT', '8080'))
 
+os.makedirs(TASK_OUTPUT_PATH, exist_ok=True)
+
 cctv_stream_repo: CCTVStreamRepository = CCTVStreamITSRepo(
     os.path.join(JSON_DB_STORAGE, 'cctv_stream.json'), ITS_API_KEY)
 task_item_repo: TaskItemRepository = TaskItemJsonRepo(

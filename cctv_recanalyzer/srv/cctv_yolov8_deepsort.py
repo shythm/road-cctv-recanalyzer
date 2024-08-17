@@ -60,7 +60,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
         video_metadata = self._output_repo.get_by_name(video_path).metadata
         params = {
             "targetname": video_path,
-            "confidence": confidence,
+            "confidence": str(confidence),
             "cctv": video_metadata.get("cctv", "N/A"),
             "startat": video_metadata.get("startat", "N/A"),
             "endat": video_metadata.get("endat", "N/A"),
@@ -113,7 +113,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                         raise TaskCancelException("객체 추적이 요청에 의해 중단되었습니다.")
 
                     # https://docs.ultralytics.com/modes/predict/
-                    detection = self._model.predict(source=[frame], conf=confidence)[0]
+                    detection = self._model.predict(source=[frame], conf=confidence, verbose=False)[0]
 
                     # for update deepsort tracker
                     raw_detections: list[tuple[list[float | int], float, str]] = []
