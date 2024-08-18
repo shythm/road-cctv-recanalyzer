@@ -6,7 +6,7 @@ import "./index.css";
 import { client } from "./client/services.gen.ts";
 
 import RootPage from "./routes/root.tsx";
-import CctvPage from "./routes/cctv.tsx";
+import RecordPage from "./routes/record.tsx";
 
 client.setConfig({
   baseUrl: "http://localhost:8000",
@@ -18,8 +18,8 @@ const router = createBrowserRouter([
     element: <RootPage />,
     children: [
       {
-        path: "cctv/",
-        element: <CctvPage />,
+        path: "record/",
+        element: <RecordPage />,
       },
     ],
   },
