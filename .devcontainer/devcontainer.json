@@ -24,7 +24,8 @@
         "ms-python.autopep",
         "esbenp.prettier-vscode",
         "GitHub.copilot",
-        "mhutchie.git-graph"
+        "mhutchie.git-graph",
+        "bradlc.vscode-tailwindcss"
       ]
     }
   }
