@@ -54,13 +54,17 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
             name=self.get_name(),
             params=params,
             state=TaskState.PENDING,
-            reason="",
+            reason="녹화 대기 중에 있습니다.",
             progress=0.0
         )
         self._task_repo.add(task)
         self._cancel_req[task.id] = False
 
         def task_func():
+            nonlocal startat, endat, task
+            ffmpeg_stdout = None
+            ffmpeg_stderr = None
+
             try:
                 # 녹화 대기
                 while True:
@@ -78,12 +82,15 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                 duration = (endat - datetime.now()).seconds
                 output_path = os.path.join(self._outputs_path, f"{task.id}.mp4")
 
+                ffmpeg_stdout = open(os.path.join(self._outputs_path, f"{task.id}.log"), "w")
+                ffmpeg_stderr = open(os.path.join(self._outputs_path, f"{task.id}.err"), "w")
+
                 # 녹화 시작
                 # call ffmpeg: ffmpeg -i <HLS_URL> -c copy -t <DURATION> <OUTPUT_PATH>
                 ffmpeg = subprocess.Popen(
                     ["ffmpeg", "-i", hls, "-c", "copy", "-t", str(duration), output_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                    stdout=ffmpeg_stdout,
+                    stderr=ffmpeg_stderr,
                     stdin=subprocess.DEVNULL,
                 )
 
@@ -101,6 +108,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                 retcode = ffmpeg.returncode
 
                 if retcode == 0:
+                    # write recorded video
                     self._output_repo.save(TaskOutput(
                         taskid=task.id,
                         name=f"{task.id}.mp4",
@@ -108,10 +116,14 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                         desc=f"{cctv.name} 녹화 영상",
                         metadata=params,
                     ))
+                    # remove stdout, stderr
+                    if os.path.exists(ffmpeg_stdout.name):
+                        os.remove(ffmpeg_stdout.name)
+                    if os.path.exists(ffmpeg_stderr.name):
+                        os.remove(ffmpeg_stderr.name)
                 else:
                     # write stdout
-                    with open(os.path.join(self._outputs_path, f"{task.id}.log"), "w") as f:
-                        f.write(ffmpeg.stdout.read().decode())
+                    ffmpeg_stdout.close()
                     self._output_repo.save(TaskOutput(
                         taskid=task.id,
                         name=f"{task.id}.out",
@@ -120,8 +132,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                         metadata=params,
                     ))
                     # write stderr
-                    with open(os.path.join(self._outputs_path, f"{task.id}.err"), "w") as f:
-                        f.write(ffmpeg.stderr.read().decode())
+                    ffmpeg_stderr.close()
                     self._output_repo.save(TaskOutput(
                         taskid=task.id,
                         name=f"{task.id}.err",
@@ -141,6 +152,11 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                 self._task_repo.update(task.id, TaskState.CANCELED, str(e))
             except Exception as e:
                 self._task_repo.update(task.id, TaskState.FAILED, str(e))
+            finally:
+                if ffmpeg_stdout is not None:
+                    ffmpeg_stdout.close()
+                if ffmpeg_stderr is not None:
+                    ffmpeg_stderr.close()
 
         thread = threading.Thread(target=task_func)
         thread.start()
