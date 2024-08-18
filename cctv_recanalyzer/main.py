@@ -2,6 +2,8 @@ import os
 
 from util import get_env_force
 from fastapi import FastAPI, APIRouter, Request, Depends, Query, responses
+from fastapi.routing import APIRoute
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Type
 from pydantic import create_model, BaseModel, Field
 
@@ -46,8 +48,8 @@ cctv_tracking_srv: TaskService = YOLOv8DeepSORTTackingTaskSrv(
 )
 
 
-def create_task_router(task_service: TaskService) -> APIRouter:
-    def read_task_list() -> list[TaskItem]:
+def create_task_router(task_service: TaskService, name: str) -> APIRouter:
+    def read_all() -> list[TaskItem]:
         return task_service.get_tasks()
 
     start_query_params = {}
@@ -58,30 +60,45 @@ def create_task_router(task_service: TaskService) -> APIRouter:
         )
     StartQueryModel: Type[BaseModel] = create_model('StartTaskParams', **start_query_params)
 
-    def start_task(params: StartQueryModel = Depends()) -> TaskItem:  # type: ignore
+    def start(params: StartQueryModel = Depends()) -> TaskItem:  # type: ignore
         # remove None values
         params = params.dict()
         params = {k: v for k, v in params.items() if v is not None}
         return task_service.start(params=params)
 
-    def stop_task(taskid: str):
+    def stop(taskid: str):
         return task_service.stop(taskid)
 
-    def delete_task(taskid: str):
+    def delete(taskid: str):
         return task_service.del_task(taskid)
 
     router = APIRouter()
-    tags = [task_service.get_name()]
+    tags = ["task", name]
 
-    router.add_api_route("", read_task_list, methods=['GET'], tags=tags)
-    router.add_api_route("/start", start_task, methods=['POST'], tags=tags)
-    router.add_api_route("/stop/{taskid}", stop_task, methods=['POST'], tags=tags)
-    router.add_api_route("/{taskid}", delete_task, methods=['DELETE'], tags=tags)
+    router.add_api_route("", read_all, methods=['GET'], tags=tags)
+    router.add_api_route("/start", start, methods=['POST'], tags=tags)
+    router.add_api_route("/stop/{taskid}", stop, methods=['POST'], tags=tags)
+    router.add_api_route("/{taskid}", delete, methods=['DELETE'], tags=tags)
 
     return router
 
 
-app = FastAPI()
+def custom_generate_unique_id(route: APIRoute):
+    return f"{'_'.join(route.tags)}_{route.name}"
+
+
+app = FastAPI(generate_unique_id_function=custom_generate_unique_id)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8000",
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
 
 ######################
 # Exception Handlers #
@@ -116,35 +133,35 @@ def app_exception_handler(request: Request, exc: Exception):
 # API Endpoints #
 #################
 
-@app.get("/cctv/stream", tags=["cctv stream"])
+@app.get("/stream", tags=["stream"], name="read_all")
 def read_cctv_stream_list() -> list[CCTVStream]:
     return cctv_stream_repo.get_all()
 
 
-@app.post("/cctv/stream", tags=["cctv stream"])
+@app.post("/stream", tags=["stream"], name="create")
 def create_cctv_stream(cctvname: str, coordx: float, coordy: float) -> CCTVStream:
     return cctv_stream_repo.save(cctvname, (coordx, coordy))
 
 
-@app.delete("/cctv/stream/{cctvname}", tags=["cctv stream"])
+@app.delete("/stream/{cctvname}", tags=["stream"], name="delete")
 def delete_cctv_stream(cctvname: str) -> CCTVStream:
     return cctv_stream_repo.delete(cctvname)
 
 
-app.include_router(create_task_router(cctv_record_srv), prefix="/task/record")
-app.include_router(create_task_router(cctv_tracking_srv), prefix="/task/tracking")
+app.include_router(create_task_router(cctv_record_srv, "record"), prefix="/task/record")
+app.include_router(create_task_router(cctv_tracking_srv, "tracking"), prefix="/task/tracking")
 
 
-@app.get("/output", tags=["task output"])
+@app.get("/output", tags=["output"], name="read_all")
 def read_task_output_list() -> list[TaskOutput]:
     return task_output_repo.get_all()
 
 
-@app.get("/output/{taskid}", tags=["task output"])
+@app.get("/output/{taskid}", tags=["output"], name="read")
 def read_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.get_by_taskid(taskid)
 
 
-@app.delete("/output/{taskid}", tags=["task output"])
+@app.delete("/output/{taskid}", tags=["output"], name="delete")
 def delete_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.delete(taskid)
