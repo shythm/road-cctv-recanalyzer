@@ -4,12 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --color-primary: #211f41;
-  }
-}
-
 @layer components {
   .container {
     @apply max-w-screen-xl px-12 lg:px-0 lg:w-5/6 lg:mx-auto;
@@ -29,6 +23,26 @@
 
   .btn-normal {
     @apply bg-gray-600 text-white px-4 py-2 rounded transition hover:bg-gray-700 focus:outline-none focus:ring ring-gray-400;
+  }
+
+  .btn-base {
+    @apply px-4 py-2 rounded transition focus:outline-none focus:ring;
+  }
+
+  .btn-base-small {
+    @apply text-sm px-2 py-1 rounded transition focus:outline-none focus:ring;
+  }
+
+  .btn-gray {
+    @apply bg-gray-500 text-white hover:bg-gray-600 ring-gray-300;
+  }
+
+  .btn-dark {
+    @apply bg-gray-700 text-white hover:bg-gray-800 ring-gray-300;
+  }
+
+  .btn-danger {
+    @apply bg-red-700 text-white hover:bg-red-800 ring-red-300;
   }
 }
 
