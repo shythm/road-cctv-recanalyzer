@@ -28,11 +28,9 @@ cctv_stream_repo: CCTVStreamRepository = CCTVStreamITSRepo(
     os.path.join(JSON_DB_STORAGE, 'cctv_stream.json'), ITS_API_KEY)
 task_item_repo: TaskItemRepository = TaskItemJsonRepo(
     os.path.join(JSON_DB_STORAGE, 'tasks.json'),
-    fix_invalid_state=True
-)
+    fix_invalid_state=True)
 task_output_repo: TaskOutputRepository = TaskOutputFileRepo(
-    os.path.join(JSON_DB_STORAGE, 'task_output.json')
-)
+    os.path.join(JSON_DB_STORAGE, 'task_output.json'), TASK_OUTPUT_PATH)
 
 cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
     task_repo=task_item_repo,

@@ -52,6 +52,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
     def del_task(self, id: str):
         self._task_repo.delete(id)
+        self._output_repo.delete(id)
 
     def start(self, params: dict[str, str]) -> TaskItem:
         video_path = params["targetname"]
