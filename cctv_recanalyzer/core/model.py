@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
@@ -36,7 +36,7 @@ class TaskItem:
     state: TaskState | int
     reason: str
     progress: float
-    createdat: datetime = datetime.now()
+    createdat: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
@@ -46,7 +46,7 @@ class TaskOutput:
     desc: str
     taskid: str
     metadata: dict[str, str]  # custom field
-    createdat: datetime = datetime.now()
+    createdat: datetime = field(default_factory=datetime.now)
 
 
 @dataclass
