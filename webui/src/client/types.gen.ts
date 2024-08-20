@@ -157,15 +157,25 @@ export type OutputReadAllResponse = Array<TaskOutput>;
 
 export type OutputReadAllError = unknown;
 
-export type OutputReadData = {
+export type OutputReadByNameData = {
+    path: {
+        name: string;
+    };
+};
+
+export type OutputReadByNameResponse = TaskOutput;
+
+export type OutputReadByNameError = HTTPValidationError;
+
+export type OutputReadByTaskidData = {
     path: {
         taskid: string;
     };
 };
 
-export type OutputReadResponse = Array<TaskOutput>;
+export type OutputReadByTaskidResponse = Array<TaskOutput>;
 
-export type OutputReadError = HTTPValidationError;
+export type OutputReadByTaskidError = HTTPValidationError;
 
 export type OutputDeleteData = {
     path: {
@@ -176,3 +186,16 @@ export type OutputDeleteData = {
 export type OutputDeleteResponse = Array<TaskOutput>;
 
 export type OutputDeleteError = HTTPValidationError;
+
+export type OutputGetVideoPreviewData = {
+    path: {
+        name: string;
+    };
+    query?: {
+        random?: boolean;
+    };
+};
+
+export type OutputGetVideoPreviewResponse = unknown;
+
+export type OutputGetVideoPreviewError = HTTPValidationError;

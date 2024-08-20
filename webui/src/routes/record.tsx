@@ -12,7 +12,7 @@ import {
   taskRecordStart,
   taskRecordStop,
   taskRecordDelete,
-  outputRead,
+  outputReadByTaskid,
 } from "../client";
 
 import TaskItemView from "../components/task-item-view";
@@ -72,7 +72,7 @@ function RecordPage() {
   };
 
   const handleTaskOutputFetch = async (id: string) => {
-    const output = await outputRead({
+    const output = await outputReadByTaskid({
       path: {
         taskid: id,
       },

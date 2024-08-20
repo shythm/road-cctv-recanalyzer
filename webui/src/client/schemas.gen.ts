@@ -73,8 +73,7 @@ export const $TaskItem = {
         createdat: {
             type: 'string',
             format: 'date-time',
-            title: 'Createdat',
-            default: '2024-08-18T22:24:26.306484'
+            title: 'Createdat'
         }
     },
     type: 'object',
@@ -110,8 +109,7 @@ export const $TaskOutput = {
         createdat: {
             type: 'string',
             format: 'date-time',
-            title: 'Createdat',
-            default: '2024-08-18T22:24:26.306760'
+            title: 'Createdat'
         }
     },
     type: 'object',
