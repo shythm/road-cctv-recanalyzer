@@ -1,7 +1,7 @@
 import os
 
 from util import get_env_force
-from fastapi import FastAPI, APIRouter, Request, Depends, Query, responses
+from fastapi import FastAPI, APIRouter, Request, Depends, Query, Response, responses
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Type
@@ -16,6 +16,7 @@ from repo.task_output_file import TaskOutputFileRepo
 from repo.task_item_file import TaskItemJsonRepo
 from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
 from srv.cctv_yolov8_deepsort import YOLOv8DeepSORTTackingTaskSrv
+from srv.video_output_info import get_video_frame
 
 JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
 ITS_API_KEY = get_env_force('ITS_API_KEY')
@@ -155,7 +156,12 @@ def read_task_output_list() -> list[TaskOutput]:
     return task_output_repo.get_all()
 
 
-@app.get("/output/{taskid}", tags=["output"], name="read")
+@app.get("/output/name/{name}", tags=["output"], name="read_by_name")
+def read_task_output_by_name(name: str) -> TaskOutput:
+    return task_output_repo.get_by_name(name)
+
+
+@app.get("/output/{taskid}", tags=["output"], name="read_by_taskid")
 def read_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.get_by_taskid(taskid)
 
@@ -163,3 +169,9 @@ def read_task_output(taskid: str) -> list[TaskOutput]:
 @app.delete("/output/{taskid}", tags=["output"], name="delete")
 def delete_task_output(taskid: str) -> list[TaskOutput]:
     return task_output_repo.delete(taskid)
+
+
+@app.get("/output/video/preview/{name}", tags=["output"], name="get_video_preview")
+def get_video_preview(name: str, random: bool = True):
+    preview = get_video_frame(os.path.join(TASK_OUTPUT_PATH, name), random_number=random)
+    return Response(content=preview, media_type="image/jpeg")
