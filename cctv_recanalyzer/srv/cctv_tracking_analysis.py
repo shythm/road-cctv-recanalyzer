@@ -1,7 +1,9 @@
 import os
 import json
+import math
 import threading
 from uuid import uuid4
+import traceback
 
 import cv2
 import pandas as pd
@@ -12,12 +14,22 @@ from core.model import TaskItem, TaskParamMeta, TaskState, TaskOutput, TaskCance
 from core.repo import TaskItemRepository, TaskOutputRepository
 
 
+def find_closest_rectangle(lt, lb, rt, rb, ratio):
+    # 하단 가로 변의 길이 구하기
+    width = int(math.sqrt((lb[0] - rb[0]) ** 2 + (lb[1] - rb[1]) ** 2))
+    # 비율에 따라 세로 변의 길이 구하기
+    height = int(width * ratio)
+
+    points = [(0, 0), (0, height), (width, 0), (width, height)]
+    return points, width, height
+
+
 def interpolate_persp_data(persp_df: pd.DataFrame) -> pd.DataFrame:
     """
     추적된 객체에 대하여 두 프레임 사이의 거리가 1보다 큰 경우, 중간 프레임에 대하여 보간을 수행합니다.
     """
     # create new dataframe
-    df = pd.DataFrame()
+    df = pd.DataFrame(columns=['objid', 'frame'])
 
     # interpolate missing frame
     for objid in persp_df['objid'].unique():
@@ -85,6 +97,10 @@ class CCTVTrackingAnalysisTaskSrv(TaskService):
         # get csv file path
         trackdata = params["trackdata"]
 
+        # get road width and height
+        roadwidth = float(params["roadwidth"])  # meter
+        roadheight = float(params["roadheight"])  # meter
+
         # get src points [lt, lb, rt, rb]
         roi = params["roi"]
         srcpoints: list[tuple[int, int]] = [
@@ -92,22 +108,8 @@ class CCTVTrackingAnalysisTaskSrv(TaskService):
         ]
 
         # determine dst points
-        xpoints = [x for x, _ in srcpoints]
-        ypoints = [y for _, y in srcpoints]
-        minpoint = min(xpoints), min(ypoints)
-        maxpoint = max(xpoints), max(ypoints)
-        roiwidth = maxpoint[0] - minpoint[0]
-        roiheight = maxpoint[1] - minpoint[1]
-        dstpoints = [
-            (0, 0),  # lt
-            (0, roiheight),  # lb
-            (roiwidth, 0),  # rt
-            (roiwidth, roiheight)  # rb
-        ]
-
-        # get road width and height
-        roadwidth = float(params["roadwidth"])  # meter
-        roadheight = float(params["roadheight"])  # meter
+        dstpoints, roiwidth, roiheight = find_closest_rectangle(
+            *srcpoints, ratio=roadheight / roadwidth)
 
         # get csv(input) metadata
         track_metadata = self._output_repo.get_by_name(trackdata).metadata
@@ -248,7 +250,7 @@ class CCTVTrackingAnalysisTaskSrv(TaskService):
                 self._task_repo.update(task.id, TaskState.FINISHED, "분석이 완료되었습니다.")
 
             except Exception as e:
-                self._task_repo.update(task.id, TaskState.FAILED, str(e))
+                self._task_repo.update(task.id, TaskState.FAILED, traceback.format_exc())
 
         threading.Thread(target=task_func).start()
         return task
