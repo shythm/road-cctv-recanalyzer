@@ -1,8 +1,19 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 
 import { TaskOutput } from "../models";
-import { transTaskOutput } from "../models/util";
-import { outputReadByName, outputGetVideoPreview } from "../client";
+import { transTaskOutput, transTaskItem } from "../models/util";
+import {
+  outputReadByName,
+  outputReadByTaskid,
+  outputGetVideoPreview,
+  taskAnalysisReadAll,
+  taskAnalysisStart,
+  taskAnalysisStop,
+  taskAnalysisDelete,
+} from "../client";
+
+import TaskItemView from "../components/task-item-view";
+import useTaskPolling from "../components/task-polling";
 
 type Point = { x: number; y: number };
 
@@ -131,6 +142,18 @@ function AnalyzePage() {
     { x: 250, y: 150 }, // right top
     { x: 250, y: 250 }, // right bottom
   ]);
+  const [roadWidth, setRoadWidth] = useState("");
+  const [roadHeight, setRoadHeight] = useState("");
+
+  const readTasks = useCallback(async () => {
+    const tasks = await taskAnalysisReadAll();
+    if (tasks.data) {
+      return tasks.data.map(transTaskItem);
+    } else {
+      return [];
+    }
+  }, []);
+  const { tasks, pollTasks } = useTaskPolling(readTasks);
 
   useEffect(() => {
     if (csvOutput) {
@@ -141,6 +164,58 @@ function AnalyzePage() {
       });
     }
   }, [csvOutput]);
+
+  const handleTaskStart = async () => {
+    if (csvName && roi && roadWidth && roadHeight) {
+      await taskAnalysisStart({
+        query: {
+          trackdata: csvName,
+          roi: JSON.stringify(roi.map((point) => [point.x, point.y])),
+          roadwidth: roadWidth,
+          roadheight: roadHeight,
+        },
+      });
+      window.alert("차량 추적 작업이 제출되었습니다.");
+      pollTasks();
+    } else {
+      window.alert("파라미터를 모두 입력해주세요.");
+    }
+  };
+
+  const handleTaskOutputFetch = async (id: string) => {
+    const output = await outputReadByTaskid({
+      path: {
+        taskid: id,
+      },
+    });
+    if (output.data) {
+      return output.data.map(transTaskOutput);
+    } else {
+      return [];
+    }
+  };
+
+  const handleTaskCancel = async (id: string) => {
+    if (window.confirm("정말로 작업을 취소하시겠습니까?")) {
+      await taskAnalysisStop({
+        path: {
+          taskid: id,
+        },
+      });
+      pollTasks();
+    }
+  };
+
+  const handleTaskDelete = async (id: string) => {
+    if (window.confirm("정말로 작업을 삭제하시겠습니까?")) {
+      await taskAnalysisDelete({
+        path: {
+          taskid: id,
+        },
+      });
+      pollTasks();
+    }
+  };
 
   return (
     <section>
@@ -229,20 +304,46 @@ function AnalyzePage() {
           </div>
           <div>
             <div className="font-medium mb-1">도로 가로 길이(m)</div>
-            <input type="text" className="inputbox" />
+            <input
+              type="number"
+              className="inputbox"
+              step="0.1"
+              value={roadWidth}
+              onChange={(e) => setRoadWidth(e.target.value)}
+            />
           </div>
           <div>
             <div className="font-medium mb-1">도로 세로 길이(m)</div>
-            <input type="text" className="inputbox" />
+            <input
+              type="number"
+              className="inputbox"
+              step="0.1"
+              value={roadHeight}
+              onChange={(e) => setRoadHeight(e.target.value)}
+            />
           </div>
         </div>
         <div className="text-right">
-          <button className="btn-base btn-dark">분석하기</button>
+          <button
+            className="btn-base btn-dark"
+            onClick={() => handleTaskStart()}
+          >
+            분석하기
+          </button>
         </div>
       </div>
       <p className="descbox my-4">
         영상 차량 추적 데이터 분석 결과는 아래에서 확인할 수 있습니다.
       </p>
+      <TaskItemView
+        tasks={tasks}
+        onTaskOutputFetch={async (id) => await handleTaskOutputFetch(id)}
+        onTaskCancel={async (id) => await handleTaskCancel(id)}
+        onTaskDelete={async (id) => await handleTaskDelete(id)}
+        outputDownloadLinkGenerator={(output) => {
+          return `/static/${output.name}`;
+        }}
+      />
     </section>
   );
 }

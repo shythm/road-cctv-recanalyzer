@@ -153,6 +153,55 @@ export type TaskTrackingDeleteResponse = unknown;
 
 export type TaskTrackingDeleteError = HTTPValidationError;
 
+export type TaskAnalysisReadAllResponse = Array<TaskItem>;
+
+export type TaskAnalysisReadAllError = unknown;
+
+export type TaskAnalysisStartData = {
+    query: {
+        /**
+         * 도로 길이(m)
+         */
+        roadheight: string;
+        /**
+         * 도로 너비(m)
+         */
+        roadwidth: string;
+        /**
+         * ROI 좌표
+         */
+        roi: string;
+        /**
+         * 추적 데이터(csv)
+         */
+        trackdata: string;
+    };
+};
+
+export type TaskAnalysisStartResponse = TaskItem;
+
+export type TaskAnalysisStartError = HTTPValidationError;
+
+export type TaskAnalysisStopData = {
+    path: {
+        taskid: string;
+    };
+};
+
+export type TaskAnalysisStopResponse = unknown;
+
+export type TaskAnalysisStopError = HTTPValidationError;
+
+export type TaskAnalysisDeleteData = {
+    path: {
+        taskid: string;
+    };
+};
+
+export type TaskAnalysisDeleteResponse = unknown;
+
+export type TaskAnalysisDeleteError = HTTPValidationError;
+
 export type OutputReadAllResponse = Array<TaskOutput>;
 
 export type OutputReadAllError = unknown;
