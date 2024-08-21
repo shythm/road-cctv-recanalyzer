@@ -55,31 +55,38 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
         self._output_repo.delete(id)
 
     def start(self, params: dict[str, str]) -> TaskItem:
-        video_path = params["targetname"]
+        targetname = params["targetname"]
         confidence = float(params.get("confidence", self._confidence_threshold_default))
 
-        video_metadata = self._output_repo.get_by_name(video_path).metadata
-        params = {
-            "targetname": video_path,
+        fps = 30
+        tmp_cap = cv2.VideoCapture(os.path.join(self._outputs_path, targetname))
+        if tmp_cap.isOpened():
+            fps = int(tmp_cap.get(cv2.CAP_PROP_FPS))
+        tmp_cap.release()
+
+        target_metadata = self._output_repo.get_by_name(targetname).metadata
+        metadata = {
+            "targetname": targetname,
             "confidence": str(confidence),
-            "cctv": video_metadata.get("cctv", "N/A"),
-            "startat": video_metadata.get("startat", "N/A"),
-            "endat": video_metadata.get("endat", "N/A"),
+            "fps": str(fps),
+            "cctv": target_metadata.get("cctv", "N/A"),
+            "startat": target_metadata.get("startat", "N/A"),
+            "endat": target_metadata.get("endat", "N/A"),
         }
 
         task = TaskItem(
             id=str(uuid4()),
             name=self.get_name(),
-            params=params,
+            params=metadata,
             state=TaskState.PENDING,
-            reason="",
+            reason="작업이 제출되었습니다.",
             progress=0.0,
         )
         self._task_repo.add(task)
         self._cancel_req[task.id] = False
 
         def task_func():
-            nonlocal confidence, video_path, params, task
+            nonlocal confidence, targetname, fps, task
             cap = None
             cap_out = None
 
@@ -87,16 +94,15 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                 model = YOLO(model=self._model_path)
                 tracker = DeepSort(max_age=10)
 
-                cap = cv2.VideoCapture(os.path.join(self._outputs_path, video_path))
+                cap = cv2.VideoCapture(os.path.join(self._outputs_path, targetname))
                 if not cap.isOpened():
                     raise Exception('Error opening video file')
 
                 frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 frame_total_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                fps = int(cap.get(cv2.CAP_PROP_FPS))
                 frame_num = 0
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                fourcc = cv2.VideoWriter.fourcc(*'mp4v')
 
                 video_out_path = os.path.join(self._outputs_path, f"{task.id}.mp4")
                 cap_out = cv2.VideoWriter(video_out_path, fourcc, fps, (frame_width, frame_height))
@@ -164,17 +170,17 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                 # save outputs
                 self._output_repo.save(TaskOutput(
                     name=f"{task.id}.csv",
-                    type="text/detection",
-                    desc=f"{params['cctv']} 객체 추적 결과",
+                    type="text/csv",
+                    desc=f"{task.params['cctv']} 객체 추적 결과",
                     taskid=task.id,
-                    metadata=params,
+                    metadata=task.params,
                 ))
                 self._output_repo.save(TaskOutput(
                     name=f"{task.id}.mp4",
                     type="video/mp4",
-                    desc=f"{params['cctv']} 객체 추적 영상",
+                    desc=f"{task.params['cctv']} 객체 추적 영상",
                     taskid=task.id,
-                    metadata=params,
+                    metadata=task.params,
                 ))
 
                 task.progress = 1.0
