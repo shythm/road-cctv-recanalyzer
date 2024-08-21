@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 
-import { TaskItem, TaskState } from "../models";
 import { transTaskItem, transTaskOutput } from "../models/util";
 import {
   taskTrackingReadAll,
@@ -11,35 +10,21 @@ import {
 } from "../client";
 
 import TaskItemView from "../components/task-item-view";
+import useTaskPolling from "../components/task-polling";
 
 function TrackPage() {
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [trigFetchTaskItems, setTrigFetchTaskItems] = useState(0);
-
   const [targetname, setTargetName] = useState("");
   const [confidence, setConfidence] = useState(0.6);
 
-  // Check if there are any PENDING or STARTED tasks
-  const polling = tasks.some(
-    (task) =>
-      task.state === TaskState.PENDING || task.state === TaskState.STARTED
-  );
-
-  useEffect(() => {
-    const fetchTaskItems = async () => {
-      const tasks = await taskTrackingReadAll();
-      if (tasks.data) {
-        setTasks(tasks.data.map(transTaskItem));
-      }
-    };
-    fetchTaskItems();
-
-    // Polling every 2 seconds if there are any PENDING or STARTED tasks
-    if (polling) {
-      const interval = setInterval(fetchTaskItems, 2000);
-      return () => clearInterval(interval);
+  const readTasks = useCallback(async () => {
+    const tasks = await taskTrackingReadAll();
+    if (tasks.data) {
+      return tasks.data.map(transTaskItem);
+    } else {
+      return [];
     }
-  }, [polling, trigFetchTaskItems]);
+  }, []);
+  const { tasks, pollTasks } = useTaskPolling(readTasks);
 
   const handleTaskStart = async () => {
     if (targetname && confidence) {
@@ -50,7 +35,7 @@ function TrackPage() {
         },
       });
       window.alert("차량 추적 작업이 제출되었습니다.");
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 
@@ -74,7 +59,7 @@ function TrackPage() {
           taskid: id,
         },
       });
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 
@@ -85,7 +70,7 @@ function TrackPage() {
           taskid: id,
         },
       });
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 

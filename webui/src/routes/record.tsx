@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
-import { CCTVStream, TaskItem, TaskState } from "../models";
+import { CCTVStream } from "../models";
 import {
   transCCTVStream,
   transTaskItem,
@@ -16,15 +16,23 @@ import {
 } from "../client";
 
 import TaskItemView from "../components/task-item-view";
+import useTaskPolling from "../components/task-polling";
 
 function RecordPage() {
   const [cctvstreams, setCCTVStreams] = useState<CCTVStream[]>([]);
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [trigFetchTaskItems, setTrigFetchTaskItems] = useState(0);
-
   const [selected, setSelected] = useState<string>("");
   const [startat, setStartAt] = useState<string>("");
   const [endat, setEndAt] = useState<string>("");
+
+  const readTasks = useCallback(async () => {
+    const tasks = await taskRecordReadAll();
+    if (tasks.data) {
+      return tasks.data.map(transTaskItem);
+    } else {
+      return [];
+    }
+  }, []);
+  const { tasks, pollTasks } = useTaskPolling(readTasks);
 
   useEffect(() => {
     // Fetch CCTVStreams at the beginning
@@ -34,28 +42,6 @@ function RecordPage() {
       }
     });
   }, []);
-
-  // Check if there are any PENDING or STARTED tasks
-  const polling = tasks.some(
-    (task) =>
-      task.state === TaskState.PENDING || task.state === TaskState.STARTED
-  );
-
-  useEffect(() => {
-    const fetchTaskItems = async () => {
-      const tasks = await taskRecordReadAll();
-      if (tasks.data) {
-        setTasks(tasks.data.map(transTaskItem));
-      }
-    };
-    fetchTaskItems();
-
-    // Polling every 2 seconds if there are any PENDING or STARTED tasks
-    if (polling) {
-      const interval = setInterval(fetchTaskItems, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [polling, trigFetchTaskItems]);
 
   const handleTaskStart = async () => {
     if (selected && startat && endat) {
@@ -67,7 +53,7 @@ function RecordPage() {
         },
       });
       window.alert(`${selected} 녹화 작업이 제출되었습니다.`);
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 
@@ -91,7 +77,7 @@ function RecordPage() {
           taskid: id,
         },
       });
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 
@@ -102,7 +88,7 @@ function RecordPage() {
           taskid: id,
         },
       });
-      setTrigFetchTaskItems((prev) => prev + 1);
+      pollTasks();
     }
   };
 
