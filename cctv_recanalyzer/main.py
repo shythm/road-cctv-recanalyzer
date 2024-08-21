@@ -17,6 +17,7 @@ from repo.task_item_file import TaskItemJsonRepo
 from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
 from srv.cctv_yolov8_deepsort import YOLOv8DeepSORTTackingTaskSrv
 from srv.video_output_info import get_video_frame
+from srv.cctv_tracking_analysis import CCTVTrackingAnalysisTaskSrv
 
 JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
 ITS_API_KEY = get_env_force('ITS_API_KEY')
@@ -42,6 +43,11 @@ cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
 cctv_tracking_srv: TaskService = YOLOv8DeepSORTTackingTaskSrv(
     task_repo=task_item_repo,
     model_path='yolov8l.pt',
+    outputs_path=TASK_OUTPUT_PATH,
+    output_repo=task_output_repo,
+)
+cctv_analysis_srv: TaskService = CCTVTrackingAnalysisTaskSrv(
+    task_repo=task_item_repo,
     outputs_path=TASK_OUTPUT_PATH,
     output_repo=task_output_repo,
 )
@@ -149,6 +155,7 @@ def delete_cctv_stream(cctvname: str) -> CCTVStream:
 
 app.include_router(create_task_router(cctv_record_srv, "record"), prefix="/task/record")
 app.include_router(create_task_router(cctv_tracking_srv, "tracking"), prefix="/task/tracking")
+app.include_router(create_task_router(cctv_analysis_srv, "analysis"), prefix="/task/analysis")
 
 
 @app.get("/output", tags=["output"], name="read_all")
