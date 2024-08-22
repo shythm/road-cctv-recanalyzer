@@ -1,2 +1,8 @@
 .development/
-.devcontainer/sqlite3.db
+
+.env
+.env.development
+.env.production
+
+deploy/data/
+deploy/output/

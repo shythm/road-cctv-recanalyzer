@@ -22,6 +22,7 @@ from srv.cctv_tracking_analysis import CCTVTrackingAnalysisTaskSrv
 JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
 ITS_API_KEY = get_env_force('ITS_API_KEY')
 TASK_OUTPUT_PATH = get_env_force('TASK_OUTPUT_PATH')
+YOLO_MODEL_PATH = get_env_force('YOLO_MODEL_PATH')
 LISTEN_PORT = int(os.getenv('LISTEN_PORT', '8080'))
 
 os.makedirs(TASK_OUTPUT_PATH, exist_ok=True)
@@ -42,7 +43,7 @@ cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
 )
 cctv_tracking_srv: TaskService = YOLOv8DeepSORTTackingTaskSrv(
     task_repo=task_item_repo,
-    model_path='yolov8l.pt',
+    model_path=YOLO_MODEL_PATH,
     outputs_path=TASK_OUTPUT_PATH,
     output_repo=task_output_repo,
 )
@@ -95,10 +96,7 @@ def custom_generate_unique_id(route: APIRoute):
 app = FastAPI(generate_unique_id_function=custom_generate_unique_id)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",
-        "http://localhost:5173"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"]

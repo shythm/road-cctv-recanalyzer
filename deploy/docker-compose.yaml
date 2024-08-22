@@ -1,0 +1,28 @@
+services:
+  recanalyzer:
+    build:
+      context: ../cctv_recanalyzer
+    expose:
+      - 8000
+    volumes:
+      - ../cctv_recanalyzer:/app
+      - ./data:/data
+      - ./output:/output
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+
+  webui:
+    build:
+      context: ../webui
+    expose:
+      - 80
+    volumes:
+      - ./output:/usr/share/nginx/html/static
+    depends_on:
+      - recanalyzer
+    ports:
+      - "8888:80"

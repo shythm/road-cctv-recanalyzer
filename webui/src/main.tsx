@@ -11,7 +11,7 @@ import TrackPage from "./routes/track.tsx";
 import AnalyzePage from "./routes/analyze.tsx";
 
 client.setConfig({
-  baseUrl: "http://localhost:8000",
+  baseUrl: import.meta.env.VITE_BACKEND_API_URL,
 });
 
 const router = createBrowserRouter([
