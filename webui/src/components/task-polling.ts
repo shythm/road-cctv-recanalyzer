@@ -7,7 +7,7 @@ const useTaskPolling = (
   interval: number = 2000
 ) => {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [, setTrigger] = useState<number>(0);
+  const [trigger, setTrigger] = useState<number>(0);
 
   const polling = tasks.some(
     (task) =>
@@ -26,7 +26,7 @@ const useTaskPolling = (
       const intervalId = setInterval(fetchTaskItems, interval);
       return () => clearInterval(intervalId);
     }
-  }, [handleUpdate, polling, interval]);
+  }, [handleUpdate, polling, interval, trigger]);
 
   const pollTasks = () => setTrigger((prev) => prev + 1);
 
