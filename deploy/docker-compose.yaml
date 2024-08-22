@@ -1,5 +1,7 @@
+# prerequisites: nvidia gpu, nginx proxy manager
+
 services:
-  recanalyzer:
+  cctv-recanalyzer-api:
     build:
       context: ../cctv_recanalyzer
     expose:
@@ -8,21 +10,27 @@ services:
       - ../cctv_recanalyzer:/app
       - ./data:/data
       - ./output:/output
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              capabilities: [gpu]
+    environment:
+      - TZ=Asia/Seoul
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    restart: unless-stopped
+    runtime: nvidia
 
-  webui:
+  cctv-recanalyzer-webui:
     build:
       context: ../webui
     expose:
       - 80
     volumes:
       - ./output:/usr/share/nginx/html/static
+    environment:
+      - TZ=Asia/Seoul
+    restart: unless-stopped
     depends_on:
-      - recanalyzer
-    ports:
-      - "8888:80"
+      - cctv-recanalyzer-api
+
+networks:
+  default:
+    external: true
+    name: nginx-proxy-network
