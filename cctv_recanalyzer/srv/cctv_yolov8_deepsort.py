@@ -24,12 +24,13 @@ class Detection:
 
 
 class YOLOv8DeepSORTTackingTaskSrv(TaskService):
-    _confidence_threshold_default = 0.6
-    _cancel_req: dict[str, bool] = {}
 
     def __init__(
             self, task_repo: TaskItemRepository, model_path: str,
             outputs_path: str, output_repo: TaskOutputRepository):
+
+        self._confidence_threshold_default = 0.6
+        self._cancel_req: dict[str, bool] = {}
 
         self._task_repo = task_repo
         self._model_path = model_path
@@ -39,7 +40,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
     def get_name(self) -> str:
         return "CCTV 객체 추적 (YOLOv8 + DeepSORT)"
 
-    def get_params(self) -> list[dict]:
+    def get_params(self) -> list[TaskParamMeta]:
         return [
             TaskParamMeta(
                 name="targetname", desc="분석할 CCTV 영상", accept=["video/mp4"]),
@@ -121,9 +122,11 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
                     # https://docs.ultralytics.com/modes/predict/
                     detection = model.predict(source=[frame], conf=confidence, verbose=False)[0]
+                    if detection.boxes is None:
+                        continue
 
                     # for update deepsort tracker
-                    raw_detections: list[tuple[list[float | int], float, str]] = []
+                    raw_detections: list[tuple[list[int], float, int]] = []
 
                     for data in detection.boxes.data.tolist():
                         # data : [xmin, ymin, xmax, ymax, confidence_score, class_id]
@@ -145,7 +148,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                         track_id = track.track_id
                         class_id = track.det_class
 
-                        xmin, ymin, xmax, ymax = map(int, track.to_ltrb())
+                        xmin, ymin, xmax, ymax = map(int, track.to_ltrb())  # type: ignore
                         x = (xmin + xmax) // 2
                         y = (ymin + ymax) // 2
 
@@ -158,7 +161,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
                         # save detection
                         results.append(Detection(
-                            frame=frame_num, objid=track_id, clsid=class_id, x=x, y=y))
+                            frame=frame_num, objid=track_id, clsid=class_id, x=x, y=y))  # type: ignore
 
                     frame_num += 1
                     cap_out.write(frame)

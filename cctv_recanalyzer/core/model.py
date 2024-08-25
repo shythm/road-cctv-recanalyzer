@@ -33,7 +33,7 @@ class TaskItem:
     id: str
     name: str
     params: dict[str, str]
-    state: TaskState | int
+    state: TaskState
     reason: str
     progress: float
     createdat: datetime = field(default_factory=datetime.now)

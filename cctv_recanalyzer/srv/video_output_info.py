@@ -4,7 +4,7 @@ import random
 
 def get_video_frame(
         filename: str,
-        frame_number: int = None,
+        frame_number: int | None = None,
         random_number: bool = False) -> bytes:
     """
     영상의 미리보기 이미지를 생성하여 BufferIO로 반환합니다. 출력은 영상의 크기와 동일합니다.

@@ -8,9 +8,9 @@ from core.repo import TaskOutputRepository
 
 
 class TaskOutputFileRepo(TaskOutputRepository):
-    _lock = threading.Lock()
 
     def __init__(self, json_path: str, outputs_path: str):
+        self._lock = threading.Lock()
         self._json_path = json_path
         self._outputs_path = outputs_path
         self._outputs: list[TaskOutput] = []

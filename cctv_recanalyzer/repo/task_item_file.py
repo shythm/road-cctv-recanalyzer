@@ -7,10 +7,10 @@ from core.repo import TaskItemRepository
 
 
 class TaskItemJsonRepo(TaskItemRepository):
-    _lock = threading.Lock()
-    _tasks: list[TaskItem] = []
 
     def __init__(self, json_path: str, fix_invalid_state: bool = True):
+        self._lock = threading.Lock()
+        self._tasks: list[TaskItem] = []
         self._json_path = json_path
         self._init_tasks()
 

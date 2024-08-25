@@ -12,12 +12,12 @@ from core.model import TaskItem, TaskState, TaskParamMeta, TaskOutput, TaskCance
 
 
 class CCTVRecordFFmpegTaskSrv(TaskService):
-    _cancel_req: dict[str, bool] = {}
 
     def __init__(
             self, task_repo: TaskItemRepository, cctv_stream_repo: CCTVStreamRepository,
             outputs_path: str, output_repo: TaskOutputRepository):
 
+        self._cancel_req: dict[str, bool] = {}
         self._task_repo = task_repo
         self._cctv_stream_repo = cctv_stream_repo
         self._outputs_path = outputs_path

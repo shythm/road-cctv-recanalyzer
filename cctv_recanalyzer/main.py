@@ -1,6 +1,5 @@
 import os
 
-from util import get_env_force
 from fastapi import FastAPI, APIRouter, Request, Depends, Query, Response, responses
 from fastapi.routing import APIRoute
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +17,17 @@ from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
 from srv.cctv_yolov8_deepsort import YOLOv8DeepSORTTackingTaskSrv
 from srv.video_output_info import get_video_frame
 from srv.cctv_tracking_analysis import CCTVTrackingAnalysisTaskSrv
+
+from dotenv import load_dotenv
+load_dotenv()
+
+
+def get_env_force(key: str) -> str:
+    value = os.getenv(key)
+    if value is None:
+        raise ValueError(f'{key} is not set')
+    return value
+
 
 JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
 ITS_API_KEY = get_env_force('ITS_API_KEY')
@@ -81,16 +91,16 @@ def create_task_router(task_service: TaskService, name: str) -> APIRouter:
     router = APIRouter()
     tags = ["task", name]
 
-    router.add_api_route("", read_all, methods=['GET'], tags=tags)
-    router.add_api_route("/start", start, methods=['POST'], tags=tags)
-    router.add_api_route("/stop/{taskid}", stop, methods=['POST'], tags=tags)
-    router.add_api_route("/{taskid}", delete, methods=['DELETE'], tags=tags)
+    router.add_api_route("", read_all, methods=['GET'], tags=tags)  # type: ignore
+    router.add_api_route("/start", start, methods=['POST'], tags=tags)  # type: ignore
+    router.add_api_route("/stop/{taskid}", stop, methods=['POST'], tags=tags)  # type: ignore
+    router.add_api_route("/{taskid}", delete, methods=['DELETE'], tags=tags)  # type: ignore
 
     return router
 
 
 def custom_generate_unique_id(route: APIRoute):
-    return f"{'_'.join(route.tags)}_{route.name}"
+    return f"{'_'.join(route.tags)}_{route.name}"  # type: ignore
 
 
 app = FastAPI(generate_unique_id_function=custom_generate_unique_id)
@@ -172,8 +182,8 @@ def read_task_output(taskid: str) -> list[TaskOutput]:
 
 
 @app.delete("/output/{taskid}", tags=["output"], name="delete")
-def delete_task_output(taskid: str) -> list[TaskOutput]:
-    return task_output_repo.delete(taskid)
+def delete_task_output(taskid: str):
+    task_output_repo.delete(taskid)
 
 
 @app.get("/output/video/preview/{name}", tags=["output"], name="get_video_preview")

@@ -52,15 +52,7 @@ export const $TaskItem = {
             title: 'Params'
         },
         state: {
-            anyOf: [
-                {
-                    '$ref': '#/components/schemas/TaskState'
-                },
-                {
-                    type: 'integer'
-                }
-            ],
-            title: 'State'
+            '$ref': '#/components/schemas/TaskState'
         },
         reason: {
             type: 'string',

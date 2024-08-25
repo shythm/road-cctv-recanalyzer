@@ -74,7 +74,7 @@ class CCTVTrackingAnalysisTaskSrv(TaskService):
     def get_name(self) -> str:
         return "차량 추적 데이터 분석"
 
-    def get_params(self) -> list[dict]:
+    def get_params(self) -> list[TaskParamMeta]:
         return [
             TaskParamMeta(
                 name="trackdata", desc="추적 데이터(csv)", accept=["text/detection"]),

@@ -16,7 +16,7 @@ export type TaskItem = {
     params: {
         [key: string]: (string);
     };
-    state: TaskState | number;
+    state: TaskState;
     reason: string;
     progress: number;
     createdat?: string;
@@ -232,7 +232,7 @@ export type OutputDeleteData = {
     };
 };
 
-export type OutputDeleteResponse = Array<TaskOutput>;
+export type OutputDeleteResponse = unknown;
 
 export type OutputDeleteError = HTTPValidationError;
 

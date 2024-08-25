@@ -7,12 +7,13 @@ from core.repo import CCTVStreamRepository
 
 
 class CCTVStreamITSRepo(CCTVStreamRepository):
-    _lock = threading.Lock()
-    _data: list[CCTVStream] = []
-    _delta_coord = 0.01
-    _dist_epsilon = 1e-6
 
     def __init__(self, json_path: str, api_key: str):
+        self._lock = threading.Lock()
+        self._data: list[CCTVStream] = []
+        self._delta_coord = 0.01
+        self._dist_epsilon = 1e-6
+
         self._json_path = json_path
         self._api_key = api_key
         self._load_data()
@@ -127,7 +128,7 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
                 min_dist = dist
                 min_cctv = cctv
 
-        if min_dist > self._dist_epsilon:
+        if min_cctv is None:
             raise EntityNotFound(f"HLS 주소를 찾을 수 없습니다.")
 
         return min_cctv['cctvurl']
