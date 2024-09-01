@@ -63,7 +63,7 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
 
         try:
             model = YOLO(model=self._model_path)
-            tracker = DeepSort(max_age=10)
+            tracker = DeepSort(max_iou_distance=0.3, max_age=20, n_init=2, max_cosine_distance=0.2)
 
             cap = cv2.VideoCapture(os.path.join(self._outputs_path, targetname))
             if not cap.isOpened():
