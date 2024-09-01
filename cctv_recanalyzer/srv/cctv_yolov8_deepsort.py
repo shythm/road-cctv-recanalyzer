@@ -75,8 +75,8 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
             frame_num = 0
             fourcc = cv2.VideoWriter.fourcc(*'mp4v')
 
-            video_out_path = os.path.join(self._outputs_path, f"{task.id}.mp4")
-            cap_out = cv2.VideoWriter(video_out_path, fourcc, fps, (frame_width, frame_height))
+            video_out_tmp = "/tmp/cctv-yolov8-deepsort.mp4"
+            cap_out = cv2.VideoWriter(video_out_tmp, fourcc, fps, (frame_width, frame_height))
 
             results_path = os.path.join(self._outputs_path, f"{task.id}.csv")
             results: list[Detection] = []
@@ -137,8 +137,16 @@ class YOLOv8DeepSORTTackingTaskSrv(TaskService):
                 cap_out.write(frame)
                 task.progress = frame_num / frame_total_count
 
+            # save results
             df = pd.DataFrame([vars(result) for result in results])
             df.to_csv(results_path, index=False)
+
+            # using ffmpeg to convert mp4 video
+            cap_out.release()
+            ffmpeg_ret = os.system(
+                f"ffmpeg -y -i {video_out_tmp} -vcodec libx264 {os.path.join(self._outputs_path, task.id)}.mp4")
+            if ffmpeg_ret != 0:
+                raise Exception("There was an error converting the video file.")
 
             # save outputs
             self._output_repo.save(TaskOutput(
