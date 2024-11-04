@@ -1,21 +1,22 @@
 """
 testing cctvrecorder_ffmpeg.py using unittest
 """
+
 import sys
-sys.path.append('..')
 
-import unittest
+sys.path.append("..")
 
-from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
-from repo.cctvstream_its_db import CCTVStreamITSDBRepo
-from repo.cctvrecord_db import CCTVRecordDBRepo
-
-from core.model import CCTVRecord, CCTVRecordState
-
-from datetime import datetime, timedelta
 import os
 import time
+import unittest
+from datetime import datetime, timedelta
+
 import cv2
+from core.model import CCTVRecord, CCTVRecordState
+from repo.cctvrecord_db import CCTVRecordDBRepo
+from repo.cctvstream_its_db import CCTVStreamITSDBRepo
+from srv.cctvrecorder_ffmpeg import CCTVRecorderFFmpeg
+
 
 class UnitTester(unittest.TestCase):
 
@@ -33,7 +34,7 @@ class UnitTester(unittest.TestCase):
             stream_repo=stream_repo,
             record_repo=record_repo,
             output_path="output",
-            logging_path="log"
+            logging_path="log",
         )
         cls.recorder.start()
         cls.interval = cls.recorder.SCHEDULE_INTERVAL
@@ -50,7 +51,7 @@ class UnitTester(unittest.TestCase):
     def tearDownClass(cls):
         cls.recorder.stop()
         os.remove(cls.db_path)
-        
+
     def _assert_duration(self, path: str, duration: int):
         cap = cv2.VideoCapture(path)
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -84,7 +85,9 @@ class UnitTester(unittest.TestCase):
         """
         seconds = 5
         record = UnitTester.recorder.submit(
-            UnitTester.cctv[1].id, datetime.now(), datetime.now() + timedelta(seconds=seconds)
+            UnitTester.cctv[1].id,
+            datetime.now(),
+            datetime.now() + timedelta(seconds=seconds),
         )
         self.assertIsInstance(record, CCTVRecord)
 
@@ -121,10 +124,14 @@ class UnitTester(unittest.TestCase):
         """
         seconds = 5
         record1 = self.recorder.submit(
-            UnitTester.cctv[0].id, datetime.now(), datetime.now() + timedelta(seconds=seconds * 2)
+            UnitTester.cctv[0].id,
+            datetime.now(),
+            datetime.now() + timedelta(seconds=seconds * 2),
         )
         record2 = self.recorder.submit(
-            UnitTester.cctv[1].id, datetime.now() + timedelta(seconds=2), datetime.now() + timedelta(seconds=2 + seconds)
+            UnitTester.cctv[1].id,
+            datetime.now() + timedelta(seconds=2),
+            datetime.now() + timedelta(seconds=2 + seconds),
         )
 
         time.sleep(seconds * 2 + UnitTester.interval * 2)
@@ -136,6 +143,7 @@ class UnitTester(unittest.TestCase):
 
         self._assert_duration(record1.path, seconds * 2)
         self._assert_duration(record2.path, seconds)
+
 
 if __name__ == "__main__":
     unittest.main()

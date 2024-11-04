@@ -2,7 +2,7 @@ import json
 import threading
 from datetime import datetime
 
-from core.model import TaskItem, TaskState, EntityNotFound
+from core.model import EntityNotFound, TaskItem, TaskState
 from core.repo import TaskItemRepository
 
 
@@ -27,29 +27,35 @@ class TaskItemJsonRepo(TaskItemRepository):
             # deserialize from json file
             with open(self._json_path, "r") as f:
                 data = json.load(f)
-                self._tasks = [TaskItem(
-                    id=task['id'],
-                    name=task['name'],
-                    params=task['params'],
-                    state=TaskState(task['state']),
-                    reason=task['reason'],
-                    progress=task['progress'],
-                    createdat=datetime.fromisoformat(task['createdat'])
-                ) for task in data]
+                self._tasks = [
+                    TaskItem(
+                        id=task["id"],
+                        name=task["name"],
+                        params=task["params"],
+                        state=TaskState(task["state"]),
+                        reason=task["reason"],
+                        progress=task["progress"],
+                        createdat=datetime.fromisoformat(task["createdat"]),
+                    )
+                    for task in data
+                ]
         except FileNotFoundError:
             pass
 
     def _save_tasks(self):
         # serialize to json file
-        data = [{
-            'id': task.id,
-            'name': task.name,
-            'params': task.params,
-            'state': task.state.value,
-            'reason': task.reason,
-            'progress': task.progress,
-            'createdat': task.createdat.isoformat(),
-        } for task in self._tasks]
+        data = [
+            {
+                "id": task.id,
+                "name": task.name,
+                "params": task.params,
+                "state": task.state.value,
+                "reason": task.reason,
+                "progress": task.progress,
+                "createdat": task.createdat.isoformat(),
+            }
+            for task in self._tasks
+        ]
 
         with open(self._json_path, "w") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

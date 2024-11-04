@@ -1,7 +1,7 @@
 import json
-import requests
 import threading
 
+import requests
 from core.model import CCTVStream, EntityNotFound
 from core.repo import CCTVStreamRepository
 
@@ -23,21 +23,23 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         try:
             with open(self._json_path, "r") as f:
                 data = json.load(f)
-                self._data = [CCTVStream(
-                    name=stream['name'],
-                    coordx=stream['coordx'],
-                    coordy=stream['coordy']
-                ) for stream in data]
+                self._data = [
+                    CCTVStream(
+                        name=stream["name"],
+                        coordx=stream["coordx"],
+                        coordy=stream["coordy"],
+                    )
+                    for stream in data
+                ]
         except FileNotFoundError:
             pass
 
     def _save_data(self):
         # serialize to json file
-        data = [{
-            'name': stream.name,
-            'coordx': stream.coordx,
-            'coordy': stream.coordy
-        } for stream in self._data]
+        data = [
+            {"name": stream.name, "coordx": stream.coordx, "coordy": stream.coordy}
+            for stream in self._data
+        ]
 
         with open(self._json_path, "w") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -90,16 +92,19 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         x, y = cctv.coordx, cctv.coordy
 
         # API 호출
-        res = requests.get("https://openapi.its.go.kr:9443/cctvInfo", params={
-            "apiKey": self._api_key,
-            "type": "ex",
-            "cctvType": 1,
-            "minX": x - self._delta_coord,
-            "maxX": x + self._delta_coord,
-            "minY": y - self._delta_coord,
-            "maxY": y + self._delta_coord,
-            "getType": "json"
-        })
+        res = requests.get(
+            "https://openapi.its.go.kr:9443/cctvInfo",
+            params={
+                "apiKey": self._api_key,
+                "type": "ex",
+                "cctvType": 1,
+                "minX": x - self._delta_coord,
+                "maxX": x + self._delta_coord,
+                "minY": y - self._delta_coord,
+                "maxY": y + self._delta_coord,
+                "getType": "json",
+            },
+        )
 
         if res.status_code != 200:
             raise EntityNotFound(f"API 호출에 실패하였습니다.")
@@ -112,7 +117,7 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         cctvformat  string  CCTV 형식
         cctvname    string  CCTV 설치 장소명
         """
-        data = res.json()['response']['data']
+        data = res.json()["response"]["data"]
 
         # [2024/06/12] data가 배열이 아닐 경우도 있다.
         if not isinstance(data, list):
@@ -122,7 +127,7 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         min_dist = float("inf")
         min_cctv = None
         for cctv in data:
-            cctv_x, cctv_y = float(cctv['coordx']), float(cctv['coordy'])
+            cctv_x, cctv_y = float(cctv["coordx"]), float(cctv["coordy"])
             dist = (x - cctv_x) ** 2 + (y - cctv_y) ** 2
             if dist < min_dist:
                 min_dist = dist
@@ -131,4 +136,4 @@ class CCTVStreamITSRepo(CCTVStreamRepository):
         if min_cctv is None:
             raise EntityNotFound(f"HLS 주소를 찾을 수 없습니다.")
 
-        return min_cctv['cctvurl']
+        return min_cctv["cctvurl"]

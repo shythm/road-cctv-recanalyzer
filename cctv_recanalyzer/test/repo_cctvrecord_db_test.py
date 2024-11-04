@@ -1,16 +1,18 @@
 """
 testing CCTVRecordDBRepo in cctvrecord_db.py
 """
-import os
-import unittest
-from datetime import datetime, timedelta
-import uuid
-import random
 
+import os
+import random
 import sys
-sys.path.append('..')
+import unittest
+import uuid
+from datetime import datetime, timedelta
+
+sys.path.append("..")
 from core.model import CCTVRecordBase
 from repo.cctvrecord_db import CCTVRecordDBRepo
+
 
 class CCTVRecordDBRepoTest(unittest.TestCase):
 
@@ -33,7 +35,7 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
             startat=datetime.now(),
             endat=datetime.now() + timedelta(hours=1),
             path=f"/tmp/test{random.randint(0, 100)}.mp4",
-            custom="this is custom field"
+            custom="this is custom field",
         )
 
     def test_insert(self):
@@ -89,6 +91,7 @@ class CCTVRecordDBRepoTest(unittest.TestCase):
         self.assertTrue(record2 in records)
         self.assertTrue(record3 in records)
         self.assertTrue(len(records) == 3)
+
 
 if __name__ == "__main__":
     unittest.main()
