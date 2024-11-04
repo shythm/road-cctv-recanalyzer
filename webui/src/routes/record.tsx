@@ -17,6 +17,7 @@ import {
 
 import TaskItemView from "../components/task-item-view";
 import useTaskPolling from "../components/task-polling";
+import { Autocomplete } from "@mui/material";
 
 function RecordPage() {
   const [cctvstreams, setCCTVStreams] = useState<CCTVStream[]>([]);
@@ -99,27 +100,29 @@ function RecordPage() {
         녹화를 원하시는 CCTV를 선택한 후 녹화 시작 시간 및 종료 시간을 입력하여
         녹화를 진행할 수 있습니다.
       </p>
-      <div className="text-lg font-medium my-4">CCTV 선택</div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-        {cctvstreams.map((cctv) => (
-          <div className="flex items-center" key={cctv.name}>
-            <input
-              id={cctv.name}
-              type="radio"
-              checked={selected === cctv.name}
-              name={cctv.name}
-              onChange={() => setSelected(cctv.name)}
-            />
-            <label
-              htmlFor={cctv.name}
-              className="ml-2 cursor-pointer hover:underline"
-            >
-              {cctv.name}
-            </label>
-          </div>
-        ))}
-      </div>
-      <div className="my-4 grid grid-cols-1 gap-2 md:grid-cols-2 md:gap-8">
+        <div>
+          <div className="text-lg font-medium mb-2">CCTV 선택</div>
+          <Autocomplete
+            options={cctvstreams}
+            getOptionLabel={(option) => option.name}
+            renderInput={(params) => (
+              <div ref={params.InputProps.ref}>
+                <input
+                  type="text"
+                  {...params.inputProps}
+                  className="inputbox"
+                  placeholder="CCTV 선택"
+                />
+              </div>
+            )}
+            onChange={(_, newValue) => {
+              if (newValue) {
+                setSelected(newValue.name);
+              }
+            }}
+          />
+        </div>
         <div>
           <div className="text-lg font-medium mb-2">녹화 시작 시간</div>
           <div>
