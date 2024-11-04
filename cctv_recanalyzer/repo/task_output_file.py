@@ -1,5 +1,5 @@
-import os
 import json
+import os
 import threading
 from datetime import datetime
 
@@ -21,27 +21,33 @@ class TaskOutputFileRepo(TaskOutputRepository):
         try:
             with open(self._json_path, "r") as f:
                 data = json.load(f)
-                self._outputs = [TaskOutput(
-                    taskid=output['taskid'],
-                    name=output['name'],
-                    type=output['type'],
-                    desc=output['desc'],
-                    createdat=datetime.fromisoformat(output['createdat']),
-                    metadata=output.get('metadata', {})
-                ) for output in data]
+                self._outputs = [
+                    TaskOutput(
+                        taskid=output["taskid"],
+                        name=output["name"],
+                        type=output["type"],
+                        desc=output["desc"],
+                        createdat=datetime.fromisoformat(output["createdat"]),
+                        metadata=output.get("metadata", {}),
+                    )
+                    for output in data
+                ]
         except FileNotFoundError:
             pass
 
     def _save_data(self):
         # serialize to json file
-        data = [{
-            'taskid': output.taskid,
-            'name': output.name,
-            'type': output.type,
-            'desc': output.desc,
-            'createdat': output.createdat.isoformat(),
-            'metadata': output.metadata,
-        } for output in self._outputs]
+        data = [
+            {
+                "taskid": output.taskid,
+                "name": output.name,
+                "type": output.type,
+                "desc": output.desc,
+                "createdat": output.createdat.isoformat(),
+                "metadata": output.metadata,
+            }
+            for output in self._outputs
+        ]
 
         with open(self._json_path, "w") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)

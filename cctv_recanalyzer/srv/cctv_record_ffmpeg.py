@@ -1,21 +1,32 @@
 import os
 import signal
+import subprocess
 import threading
 import time
-import subprocess
-from uuid import uuid4
 from datetime import datetime
+from uuid import uuid4
 
+from core.model import (
+    EntityNotFound,
+    TaskCancelException,
+    TaskItem,
+    TaskOutput,
+    TaskParamMeta,
+    TaskState,
+)
+from core.repo import CCTVStreamRepository, TaskItemRepository, TaskOutputRepository
 from core.srv import TaskService
-from core.repo import TaskItemRepository, TaskOutputRepository, CCTVStreamRepository
-from core.model import TaskItem, TaskState, TaskParamMeta, TaskOutput, TaskCancelException, EntityNotFound
 
 
 class CCTVRecordFFmpegTaskSrv(TaskService):
 
     def __init__(
-            self, task_repo: TaskItemRepository, cctv_stream_repo: CCTVStreamRepository,
-            outputs_path: str, output_repo: TaskOutputRepository):
+        self,
+        task_repo: TaskItemRepository,
+        cctv_stream_repo: CCTVStreamRepository,
+        outputs_path: str,
+        output_repo: TaskOutputRepository,
+    ):
 
         self._cancel_req: dict[str, bool] = {}
         self._task_repo = task_repo
@@ -41,9 +52,9 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
         self._output_repo.delete(id)
 
     def start(self, params: dict[str, str]) -> TaskItem:
-        cctv = self._cctv_stream_repo.get_by_name(params['cctv'])
-        startat = datetime.fromisoformat(params['startat'])
-        endat = datetime.fromisoformat(params['endat'])
+        cctv = self._cctv_stream_repo.get_by_name(params["cctv"])
+        startat = datetime.fromisoformat(params["startat"])
+        endat = datetime.fromisoformat(params["endat"])
         params = {
             "cctv": cctv.name,
             "startat": startat.isoformat(),
@@ -56,7 +67,7 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
             params=params,
             state=TaskState.PENDING,
             reason="녹화 대기 중에 있습니다.",
-            progress=0.0
+            progress=0.0,
         )
         self._task_repo.add(task)
         self._cancel_req[task.id] = False
@@ -83,21 +94,40 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                 duration = (endat - datetime.now()).seconds
                 output_path = os.path.join(self._outputs_path, f"{task.id}.mp4")
 
-                ffmpeg_stdout = open(os.path.join(self._outputs_path, f"{task.id}.log"), "w")
-                ffmpeg_stderr = open(os.path.join(self._outputs_path, f"{task.id}.err"), "w")
+                ffmpeg_stdout = open(
+                    os.path.join(self._outputs_path, f"{task.id}.log"), "w"
+                )
+                ffmpeg_stderr = open(
+                    os.path.join(self._outputs_path, f"{task.id}.err"), "w"
+                )
 
                 # 녹화 시작
                 # call ffmpeg: ffmpeg -i <HLS_URL> -c copy -t <DURATION> <OUTPUT_PATH>
                 ffmpeg = subprocess.Popen(
-                    ["ffmpeg", "-i", hls, "-c", "copy", "-t", str(duration), output_path],
+                    [
+                        "ffmpeg",
+                        "-i",
+                        hls,
+                        "-c",
+                        "copy",
+                        "-t",
+                        str(duration),
+                        output_path,
+                    ],
                     stdout=ffmpeg_stdout,
                     stderr=ffmpeg_stderr,
                     stdin=subprocess.DEVNULL,
                 )
 
-                self._task_repo.update(task.id, TaskState.STARTED, "녹화 시작 시간이 되어 녹화 중에 있습니다.")
+                self._task_repo.update(
+                    task.id,
+                    TaskState.STARTED,
+                    "녹화 시작 시간이 되어 녹화 중에 있습니다.",
+                )
                 while ffmpeg.poll() is None:
-                    task.progress = (datetime.now() - startat).seconds / (endat - startat).seconds
+                    task.progress = (datetime.now() - startat).seconds / (
+                        endat - startat
+                    ).seconds
                     task.progress = min(1.0, task.progress)
 
                     if self._cancel_req.get(task.id, False):
@@ -110,13 +140,15 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
 
                 if retcode == 0:
                     # write recorded video
-                    self._output_repo.save(TaskOutput(
-                        taskid=task.id,
-                        name=f"{task.id}.mp4",
-                        type="video/mp4",
-                        desc=f"{cctv.name} 녹화 영상",
-                        metadata=params,
-                    ))
+                    self._output_repo.save(
+                        TaskOutput(
+                            taskid=task.id,
+                            name=f"{task.id}.mp4",
+                            type="video/mp4",
+                            desc=f"{cctv.name} 녹화 영상",
+                            metadata=params,
+                        )
+                    )
                     # remove stdout, stderr
                     if os.path.exists(ffmpeg_stdout.name):
                         os.remove(ffmpeg_stdout.name)
@@ -125,29 +157,35 @@ class CCTVRecordFFmpegTaskSrv(TaskService):
                 else:
                     # write stdout
                     ffmpeg_stdout.close()
-                    self._output_repo.save(TaskOutput(
-                        taskid=task.id,
-                        name=f"{task.id}.out",
-                        type="text/stdout",
-                        desc=f"{cctv.name} 녹화 stdout",
-                        metadata=params,
-                    ))
+                    self._output_repo.save(
+                        TaskOutput(
+                            taskid=task.id,
+                            name=f"{task.id}.out",
+                            type="text/stdout",
+                            desc=f"{cctv.name} 녹화 stdout",
+                            metadata=params,
+                        )
+                    )
                     # write stderr
                     ffmpeg_stderr.close()
-                    self._output_repo.save(TaskOutput(
-                        taskid=task.id,
-                        name=f"{task.id}.err",
-                        type="text/stderr",
-                        desc=f"{cctv.name} 녹화 stderr",
-                        metadata=params,
-                    ))
+                    self._output_repo.save(
+                        TaskOutput(
+                            taskid=task.id,
+                            name=f"{task.id}.err",
+                            type="text/stderr",
+                            desc=f"{cctv.name} 녹화 stderr",
+                            metadata=params,
+                        )
+                    )
                     # remove output file
                     if os.path.exists(output_path):
                         os.remove(output_path)
                     raise Exception(f"녹화 중 오류가 발생하였습니다.")
 
                 task.progress = 1.0
-                self._task_repo.update(task.id, TaskState.FINISHED, "녹화가 완료되었습니다.")
+                self._task_repo.update(
+                    task.id, TaskState.FINISHED, "녹화가 완료되었습니다."
+                )
 
             except TaskCancelException as e:
                 self._task_repo.update(task.id, TaskState.CANCELED, str(e))

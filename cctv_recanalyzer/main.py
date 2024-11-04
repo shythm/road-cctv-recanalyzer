@@ -1,49 +1,49 @@
 import os
-
-from fastapi import FastAPI, APIRouter, Request, Depends, Query, Response, responses
-from fastapi.routing import APIRoute
-from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional, Type
-from pydantic import create_model, BaseModel, Field
 
-from core.model import CCTVStream, TaskItem, TaskOutput, EntityNotFound
+from core.model import CCTVStream, EntityNotFound, TaskItem, TaskOutput
 from core.repo import CCTVStreamRepository, TaskItemRepository, TaskOutputRepository
 from core.srv import TaskService
-
+from dotenv import load_dotenv
+from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, responses
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
+from pydantic import BaseModel, Field, create_model
 from repo.cctv_stream_its import CCTVStreamITSRepo
-from repo.task_output_file import TaskOutputFileRepo
 from repo.task_item_file import TaskItemJsonRepo
+from repo.task_output_file import TaskOutputFileRepo
 from srv.cctv_record_ffmpeg import CCTVRecordFFmpegTaskSrv
+from srv.cctv_tracking_analysis import CCTVTrackingAnalysisTaskSrv
 from srv.cctv_yolov8_deepsort import YOLOv8DeepSORTTackingTaskSrv
 from srv.video_output_info import get_video_frame
-from srv.cctv_tracking_analysis import CCTVTrackingAnalysisTaskSrv
 
-from dotenv import load_dotenv
 load_dotenv()
 
 
 def get_env_force(key: str) -> str:
     value = os.getenv(key)
     if value is None:
-        raise ValueError(f'{key} is not set')
+        raise ValueError(f"{key} is not set")
     return value
 
 
-JSON_DB_STORAGE = get_env_force('JSON_DB_STORAGE')
-ITS_API_KEY = get_env_force('ITS_API_KEY')
-TASK_OUTPUT_PATH = get_env_force('TASK_OUTPUT_PATH')
-YOLO_MODEL_PATH = get_env_force('YOLO_MODEL_PATH')
-LISTEN_PORT = int(os.getenv('LISTEN_PORT', '8080'))
+JSON_DB_STORAGE = get_env_force("JSON_DB_STORAGE")
+ITS_API_KEY = get_env_force("ITS_API_KEY")
+TASK_OUTPUT_PATH = get_env_force("TASK_OUTPUT_PATH")
+YOLO_MODEL_PATH = get_env_force("YOLO_MODEL_PATH")
+LISTEN_PORT = int(os.getenv("LISTEN_PORT", "8080"))
 
 os.makedirs(TASK_OUTPUT_PATH, exist_ok=True)
 
 cctv_stream_repo: CCTVStreamRepository = CCTVStreamITSRepo(
-    os.path.join(JSON_DB_STORAGE, 'cctv_stream.json'), ITS_API_KEY)
+    os.path.join(JSON_DB_STORAGE, "cctv_stream.json"), ITS_API_KEY
+)
 task_item_repo: TaskItemRepository = TaskItemJsonRepo(
-    os.path.join(JSON_DB_STORAGE, 'tasks.json'),
-    fix_invalid_state=True)
+    os.path.join(JSON_DB_STORAGE, "tasks.json"), fix_invalid_state=True
+)
 task_output_repo: TaskOutputRepository = TaskOutputFileRepo(
-    os.path.join(JSON_DB_STORAGE, 'task_output.json'), TASK_OUTPUT_PATH)
+    os.path.join(JSON_DB_STORAGE, "task_output.json"), TASK_OUTPUT_PATH
+)
 
 cctv_record_srv: TaskService = CCTVRecordFFmpegTaskSrv(
     task_repo=task_item_repo,
@@ -74,7 +74,9 @@ def create_task_router(task_service: TaskService, name: str) -> APIRouter:
             Optional[str] if param.optional else str,
             Field(Query(None if param.optional else ..., description=param.desc)),
         )
-    StartQueryModel: Type[BaseModel] = create_model('StartTaskParams', **start_query_params)
+    StartQueryModel: Type[BaseModel] = create_model(
+        "StartTaskParams", **start_query_params
+    )
 
     def start(params: StartQueryModel = Depends()) -> TaskItem:  # type: ignore
         # remove None values
@@ -91,10 +93,10 @@ def create_task_router(task_service: TaskService, name: str) -> APIRouter:
     router = APIRouter()
     tags = ["task", name]
 
-    router.add_api_route("", read_all, methods=['GET'], tags=tags)  # type: ignore
-    router.add_api_route("/start", start, methods=['POST'], tags=tags)  # type: ignore
-    router.add_api_route("/stop/{taskid}", stop, methods=['POST'], tags=tags)  # type: ignore
-    router.add_api_route("/{taskid}", delete, methods=['DELETE'], tags=tags)  # type: ignore
+    router.add_api_route("", read_all, methods=["GET"], tags=tags)  # type: ignore
+    router.add_api_route("/start", start, methods=["POST"], tags=tags)  # type: ignore
+    router.add_api_route("/stop/{taskid}", stop, methods=["POST"], tags=tags)  # type: ignore
+    router.add_api_route("/{taskid}", delete, methods=["DELETE"], tags=tags)  # type: ignore
 
     return router
 
@@ -109,7 +111,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 
@@ -120,31 +122,23 @@ app.add_middleware(
 
 @app.exception_handler(EntityNotFound)
 def app_entity_not_found_handler(request: Request, exc: EntityNotFound):
-    return responses.JSONResponse(
-        status_code=404,
-        content={'message': str(exc)}
-    )
+    return responses.JSONResponse(status_code=404, content={"message": str(exc)})
 
 
 @app.exception_handler(ValueError)
 def app_value_error_handler(request: Request, exc: ValueError):
-    return responses.JSONResponse(
-        status_code=400,
-        content={'message': str(exc)}
-    )
+    return responses.JSONResponse(status_code=400, content={"message": str(exc)})
 
 
 @app.exception_handler(Exception)
 def app_exception_handler(request: Request, exc: Exception):
-    return responses.JSONResponse(
-        status_code=500,
-        content={'message': str(exc)}
-    )
+    return responses.JSONResponse(status_code=500, content={"message": str(exc)})
 
 
 #################
 # API Endpoints #
 #################
+
 
 @app.get("/stream", tags=["stream"], name="read_all")
 def read_cctv_stream_list() -> list[CCTVStream]:
@@ -162,8 +156,12 @@ def delete_cctv_stream(cctvname: str) -> CCTVStream:
 
 
 app.include_router(create_task_router(cctv_record_srv, "record"), prefix="/task/record")
-app.include_router(create_task_router(cctv_tracking_srv, "tracking"), prefix="/task/tracking")
-app.include_router(create_task_router(cctv_analysis_srv, "analysis"), prefix="/task/analysis")
+app.include_router(
+    create_task_router(cctv_tracking_srv, "tracking"), prefix="/task/tracking"
+)
+app.include_router(
+    create_task_router(cctv_analysis_srv, "analysis"), prefix="/task/analysis"
+)
 
 
 @app.get("/output", tags=["output"], name="read_all")
@@ -188,5 +186,7 @@ def delete_task_output(taskid: str):
 
 @app.get("/output/video/preview/{name}", tags=["output"], name="get_video_preview")
 def get_video_preview(name: str, random: bool = True):
-    preview = get_video_frame(os.path.join(TASK_OUTPUT_PATH, name), random_number=random)
+    preview = get_video_frame(
+        os.path.join(TASK_OUTPUT_PATH, name), random_number=random
+    )
     return Response(content=preview, media_type="image/jpeg")

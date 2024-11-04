@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from core.model import TaskItem, TaskOutput, TaskState, CCTVStream
+
+from core.model import CCTVStream, TaskItem, TaskOutput, TaskState
 
 
 class TaskItemRepository(ABC):

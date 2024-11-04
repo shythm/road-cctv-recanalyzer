@@ -3,12 +3,14 @@ testing CCTVStreamITSDBRepo in cctvstream_its_db.py
 """
 
 import os
+import sys
 import unittest
+
 import requests
 
-import sys
-sys.path.append('..')
+sys.path.append("..")
 from cctv_recanalyzer.repo.cctvstream_its_db import CCTVStreamITSDBRepo
+
 
 class TestCCTVStreamITSDBRepo(unittest.TestCase):
 
@@ -91,7 +93,6 @@ class TestCCTVStreamITSDBRepo(unittest.TestCase):
         res = requests.get(hls)
         self.assertEqual(res.status_code, 200)
 
+
 if __name__ == "__main__":
     unittest.main()
-
-    
